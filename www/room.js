@@ -43,6 +43,8 @@ class Vector {
     }
 }
 
+const PLAYER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII="
+
 class GameElement extends HTMLElement {
     blueprints = [];
     #item = null;
@@ -51,6 +53,7 @@ class GameElement extends HTMLElement {
     #workshopElement;
     #itemDiv;
     #black = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAFElEQVQYV2NkYGD4D8Q4AePIUAAAhWQIAUzZY7sAAAAASUVORK5CYII="
+    #socket;
 
     constructor() {
         super();
@@ -76,17 +79,17 @@ class GameElement extends HTMLElement {
 
         this.blueprints = JSON.parse(localStorage.blueprints ?? "[]");
         // XXX
-        setTimeout(() => {
-            let room = JSON.parse(localStorage.room ?? "null");
-            if (!room) {
-                room = {
-                    tiles: new Array(8 * 8).fill({image: this.#black, wall: false})
-                };
-            }
-            this.#worldElement.room = room;
+        //setTimeout(() => {
+        //    let room = JSON.parse(localStorage.room ?? "null");
+        //    if (!room) {
+        //        room = {
+        //            tiles: new Array(8 * 8).fill({image: this.#black, wall: false})
+        //        };
+        //    }
+        //    this.#worldElement.room = room;
 
-            //this.showWorkshop();
-        }, 10);
+        //    //this.showWorkshop();
+        //}, 10);
 
         this.querySelector(".room-game-no-item").addEventListener("click", () => {
             this.item = null;
@@ -95,6 +98,51 @@ class GameElement extends HTMLElement {
 
         this.querySelector(".room-game-item").addEventListener("click", () => {
             this.toggleInventory();
+        });
+
+        this.querySelector(".room-game-open-workshop").addEventListener("click", () => {
+            this.toggleInventory();
+            this.showWorkshop();
+        });
+
+        let roomID = location.hash.slice(1);
+        if (!roomID) {
+            roomID = localStorage.roomID ?? "new";
+        }
+        this.#socket = new WebSocket(`ws://localhost:8000/rooms/${roomID}`);
+        this.#socket.addEventListener("close", event => {
+            console.log("OMG CLOSED", event.code, event.reason);
+        });
+        this.#socket.addEventListener("error", () => {
+            console.log("OMG ERROR");
+        });
+        this.#socket.addEventListener("open", () => {
+            console.log("OMG open");
+        });
+        this.#socket.addEventListener("message", event => {
+            console.log("MESSAGE RECEIVED", event.data);
+            const action = JSON.parse(event.data);
+            switch (action.type) {
+            case "JoinAction":
+                if (roomID === "new") {
+                    localStorage.roomID = action.room.id;
+                }
+                location.hash = action.room.id;
+
+                this.onJoin(action);
+                break;
+            case "UpdateBlueprintAction":
+                this.onBlueprintUpdate(action);
+                break;
+            case "UseAction":
+                this.onUse(action);
+                break;
+            case "MoveAction":
+                this.onMove(action);
+                break;
+            default:
+                throw new Error("Assertion failed");
+            }
         });
     }
 
@@ -109,10 +157,45 @@ class GameElement extends HTMLElement {
         this.#worldElement.item = value;
     }
 
-    onBlueprintUpdate(blueprint) {
-        this.blueprints.push(blueprint);
-        localStorage.blueprints = JSON.stringify(this.blueprints);
+    onJoin(action) {
+        console.log("STARTED WORLD");
+        this.userID = action.user_id;
+        const room = action.room;
+        this.blueprints = room.blueprints;
+        room.tiles = room.tile_ids.map(tileID => this.blueprints[tileID]);
+        this.#worldElement.room = room;
+    }
+
+    onBlueprintUpdate(action) {
+        this.blueprints[action.blueprint.id] = action.blueprint;
+        const room = this.#worldElement.room;
+        room.tiles = room.tile_ids.map(tileID => this.blueprints[tileID]);
+        this.#worldElement.room = room;
+        if (this.#workshopElement.blueprints) {
+            this.showWorkshop();
+        }
+        //this.blueprints.push(blueprint);
+        //localStorage.blueprints = JSON.stringify(this.blueprints);
         //this.#workshopElement.blueprints = this.blueprints;
+    }
+
+    onUse(action) {
+        console.log("USEEEE");
+        const tile = this.blueprints[action.item_id];
+        this.#worldElement.room.tiles[action.tile_index] = tile;
+        this.querySelector(".room-world-map").children[action.tile_index].querySelector("img").src =
+            tile.image;
+    }
+
+    onMove(action) {
+        if (action.user_id === this.userID) {
+            return;
+        }
+        this.#worldElement.movePlayer(action.user_id, {x: action.position[0], y: action.position[1]});
+    }
+
+    run(action) {
+        this.#socket.send(JSON.stringify(action));
     }
 
     showWorkshop() {
@@ -135,14 +218,16 @@ class GameElement extends HTMLElement {
         }
 
         const template = document.querySelector("#blueprint-template");
-        for (let blueprint of this.blueprints) {
+        for (let blueprint of Object.values(this.blueprints)) {
             let li = template.content.cloneNode(true).firstElementChild;
             li.querySelector("img").src = blueprint.image;
+            li.dataset.tileID = blueprint.id;
             li.addEventListener("click", event => {
                 const i = Array.from(ul.children).indexOf(event.currentTarget);
                 console.log("I", i);
 
-                this.item = this.blueprints[i - 1];
+                //this.item = this.blueprints[i - 1];
+                this.item = this.blueprints[event.currentTarget.dataset.tileID];
                 div.style.display = "none";
             });
             ul.append(li);
@@ -178,6 +263,7 @@ class WorldElement extends HTMLElement {
     #target;
     #room = null;
     #player;
+    #playerElements = new Map();
     #itemElement;
     #item = null;
     #pointer = {x: 0, y: 0};
@@ -206,8 +292,7 @@ class WorldElement extends HTMLElement {
     }
 
     connectedCallback() {
-        const player = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII="
-        this.#player.style.background = `url(${player})`;
+        this.#player.style.background = `url(${PLAYER_IMAGE})`;
         this.#player.position = {x: 32, y: 32};
 
         //this.#player.addEventListener("click", () => {
@@ -217,11 +302,22 @@ class WorldElement extends HTMLElement {
         // const map = this.querySelector(".room-world-map");
         const map = document.querySelector("body");
         let pointerDown = false;
+        let moveInterval = null;
         const updateTarget = event => {
             this.#target = {
                 x: Math.min(Math.max(event.clientX / this.#gameElement.scale, 0), 63),
                 y: Math.min(Math.max(event.clientY / this.#gameElement.scale, 0), 63)
             };
+            if (!moveInterval) {
+                moveInterval = setInterval(() => {
+                    const action = {
+                        type: "MoveAction",
+                        user_id: this.#gameElement.userID,
+                        position: [this.#player.position.x, this.#player.position.y]
+                    };
+                    this.#gameElement.run(action);
+                }, 1000 / 8);
+            }
             //this.#target = {
             //    x: event.target.offsetLeft + event.offsetX, y: event.target.offsetTop + event.offsetY
             //};
@@ -251,10 +347,17 @@ class WorldElement extends HTMLElement {
                     console.log("IIII", i);
 
                     if (this.#item) {
-                        this.#room.tiles[i] = this.#item;
-                        // event.currentTarget.querySelector("img").src = this.#item.image;
-                        this.querySelector(".room-world-map").children[i].querySelector("img").src = this.#item.image;
-                        localStorage.room = JSON.stringify(this.#room);
+                        const action = {
+                            type: "UseAction",
+                            user_id: this.#gameElement.userID,
+                            tile_index: i,
+                            item_id: this.#item.id
+                        };
+                        this.#gameElement.run(action);
+
+                        //this.#room.tiles[i] = this.#item;
+                        //this.querySelector(".room-world-map").children[i].querySelector("img").src = this.#item.image;
+                        //localStorage.room = JSON.stringify(this.#room);
                     } else {
                         window.alert("INTERACT");
                         // TODO change tile if it has an action attached
@@ -264,8 +367,10 @@ class WorldElement extends HTMLElement {
                     }
                 }
             }
-            t = null;
             clearTimeout(timeout);
+            t = null;
+            clearInterval(moveInterval);
+            moveInterval = null;
             this.#target = null;
         });
         map.addEventListener("pointermove", event => {
@@ -284,6 +389,7 @@ class WorldElement extends HTMLElement {
     }
 
     set room(value) {
+        console.log("ROOM", this.#room);
         this.#room = value;
 
         // render
@@ -306,6 +412,10 @@ class WorldElement extends HTMLElement {
         }
     }
 
+    get room() {
+        return this.#room;
+    }
+
     set item(value) {
         this.#item = value;
         if (value) {
@@ -315,6 +425,24 @@ class WorldElement extends HTMLElement {
             this.#itemElement.style.display = "none";
         }
         this.classList.toggle("room-world-has-item", value);
+    }
+
+    movePlayer(playerID, position) {
+        let playerElement = this.#playerElements.get(playerID);
+        if (!playerElement) {
+            //playerElement = document.createElement("room-player");
+            playerElement = new PlayerElement();
+            playerElement.style.background = `url(${PLAYER_IMAGE})`;
+            this.append(playerElement);
+            this.#playerElements.set(playerID, playerElement);
+        }
+        console.log("SETTING POSITION", position);
+        if (position.x === -1) {
+            playerElement.remove();
+            this.#playerElements.delete(playerID);
+        } else {
+            playerElement.position = position;
+        }
     }
 
     #step() {
@@ -399,10 +527,14 @@ class WorkshopElement extends HTMLElement {
         }
     }
 
+    get blueprints() {
+        return this.#blueprints;
+    }
+
     connectedCallback() {
         // Blueprints view
         this.querySelector("button").addEventListener("click", () => {
-            this.#roomEditor.blueprint = {};
+            this.#roomEditor.blueprint = {id: ""};
         });
         this.querySelector(".room-workshop-back").addEventListener("click", () => {
             this.blueprints = null;
@@ -416,14 +548,16 @@ class WorkshopElement extends HTMLElement {
         }
 
         const template = document.querySelector("#blueprint-template");
-        for (let blueprint of this.#blueprints) {
+        for (let blueprint of Object.values(this.#blueprints)) {
             let li = template.content.cloneNode(true).firstElementChild;
             li.querySelector("img").src = blueprint.image;
+            li.dataset.tileID = blueprint.id;
             li.addEventListener("click", event => {
                 console.log("CLICK");
                 //event.currentTarget;
-                const i = Array.from(ul.children).indexOf(event.currentTarget);
-                this.#roomEditor.blueprint = this.#blueprints[i];
+                // const i = Array.from(ul.children).indexOf(event.currentTarget);
+                //this.#roomEditor.blueprint = this.#blueprints[i];
+                this.#roomEditor.blueprint = this.#blueprints[event.currentTarget.dataset.tileID];
             });
             ul.lastElementChild.before(li);
         }
@@ -491,11 +625,18 @@ class EditorElement extends HTMLElement {
             event.preventDefault();
 
             // TODO send blueprint to server
-            const blueprint = {
-                image: this.#canvas.toDataURL(),
-                wall: this.querySelector("[name=wall]").checked
-            }
-            document.querySelector("room-game").onBlueprintUpdate(blueprint);
+            const gameElement = document.querySelector("room-game");
+            const action = {
+                type: "UpdateBlueprintAction",
+                user_id: gameElement.userID,
+                blueprint: {
+                    id: this.#blueprint.id,
+                    image: this.#canvas.toDataURL(),
+                    wall: this.querySelector("[name=wall]").checked
+                }
+            };
+            gameElement.run(action);
+            //document.querySelector("room-game").onBlueprintUpdate(blueprint);
             this.blueprint = null;
         });
         this.querySelector("#editor-back").addEventListener("click", () => {
