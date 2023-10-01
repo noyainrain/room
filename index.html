@@ -7,9 +7,72 @@
 
         <style>
             html {
-                font: normal / 1.5 sans-serif;
-                background: black;
+                font: 16px / 1.5 sans-serif;
                 overflow: hidden;
+
+                --room-color-text: white;
+                --room-color-background: rgb(40, 40, 40);
+                color: var(--room-color-text);
+                word-break: break-all;
+                background: var(--room-color-background);
+            }
+
+            button {
+                display: block;
+                width: 100%;
+                background: var(--room-color-background);
+                border: none;
+                border-top: 4px solid var(--room-color-text);;
+                border-bottom: 4px solid var(--room-color-text);;
+                padding: 8px;
+                color: inherit;
+                font: inherit;
+                text-align: left;
+            }
+
+            button:focus,
+            button:hover,
+            [tabindex]:focus,
+            [tabindex]:hover,
+            label:focus,
+            label:hover {
+                background: var(--room-color-text);
+                color: var(--room-color-background);
+            }
+
+            a {
+                color: rgb(85, 255, 255);
+                color: rgb(0, 170, 170);
+            }
+
+            h1,
+            h2,
+            ul,
+            p {
+                margin: 0;
+            }
+
+            ul {
+                padding: 0;
+            }
+
+            fieldset {
+                border: none;
+                padding: 0;
+            }
+
+            h1,
+            h2,
+            p,
+            label {
+                padding: 8px;
+            }
+
+            h1,
+            h2 {
+                font-size: inherit;
+                font-size: bold;
+                border-bottom: 4px solid var(--room-color-text);
             }
 
             html,
@@ -19,12 +82,16 @@
                 margin: 0;
             }
 
+            #colors {
+                align-items: center;
+            }
+
             #colors input {
                 display: none;
             }
 
             #colors span {
-                display: inline-block;
+                display: block;
                 width: 1em;
                 height: 1em;
             }
@@ -41,9 +108,21 @@
             canvas {
                 image-rendering: pixelated;
                 image-rendering: crisp-edges;
-                width: 200px;
-                height: 200px;
-                background: #808080;
+                width: 256px;
+                height: 256px;
+                /*background: #808080;*/
+                margin: 8px;
+                border: 4px solid var(--room-color-text);
+            }
+
+            .window {
+                position: absolute;
+                top: 8px;
+                left: 8px;
+                right: 8px;
+                max-height: calc(100% - 16px);
+                background: var(--room-color-background);
+                overflow: auto;
             }
         </style>
     </head>
@@ -58,11 +137,6 @@
 
                 .room-game-inventory {
                     display: none;
-                    position: absolute;
-                    left: 1em;
-                    top: 1em;
-                    background: gray;
-                    border: 8px solid gray;
                 }
 
                 .room-game-inventory ul {
@@ -72,14 +146,21 @@
                     list-style: none;
                 }
 
-                .room-game-inventory .room-game-no-item {
-                    display: inline-block;
-                    width: 64px;
-                    height: 64px;
+                .room-game-inventory li {
+                    padding: 8px;
+                }
+
+                .room-game-inventory .room-game-no-item span {
+                    box-sizing: border-box;
+                    display: block;
+                    width: 2em;
+                    height: 2em;
+                    border: 4px solid var(--room-color-text);
                 }
 
                 .room-game-inventory img {
-                    width: 64px;
+                    display: block;
+                    width: 2em;
                     image-rendering: pixelated;
                     image-rendering: crisp-edges;
                 }
@@ -88,8 +169,9 @@
                     position: absolute;
                     left: 1em;
                     bottom: 1em;
-                    border: 8px solid rgb(170, 170, 170);
-                    background: black;
+                    /*border: 8px solid rgb(170, 170, 170);*/
+                    background: var(--room-color-background);
+                    padding: 8px;
                 }
 
                 .room-game-item img {
@@ -98,6 +180,14 @@
                     height: 2em;
                     image-rendering: pixelated;
                     image-rendering: crisp-edges;
+                }
+
+                .room-game-item img[src=""] {
+                    visibility: hidden;
+                }
+
+                .room-game-tutorial {
+                    display: none;
                 }
             </style>
 
@@ -160,71 +250,134 @@
                 <room-entity class="room-world-item"></room-entity>
             </room-world>
 
-            <div class="room-game-item"><img /></div>
+            <div class="room-game-item"><img src="" /></div>
 
-            <div class="room-game-inventory">
+            <div class="room-game-inventory window">
+                <h2>Inventory</h2>
                 <ul>
-                    <li class="room-game-no-item">x</li>
+                    <li class="room-game-no-item" tabindex="0"><span></span></li>
                 </ul>
                 <button class="room-game-open-workshop">Open Workshop</button>
-                <p>Share TODO</p>
+                <p>Invite Link: <a></a></p>
             </div>
 
-            <room-workshop>
+            <div class="room-game-tutorial window">
+                <h2>Welcome!</h2>
+                <p>Hold / Touch to move</p>
+                <p>Click / Tap to use items</p>
+                <button>Okay</button>
+            </div>
+
+            <div class="room-game-intro window">
+                <h2>Room</h2>
+                <p>What should we do with all this limited space?</p>
+                <button>Start</button>
+            </div>
+
+            <room-workshop class="window">
                 <style>
                     room-workshop {
                         position: absolute;
                         inset: 0 0 0 0;
                         background: white;
+                        flex-flow: column;
+                    }
+
+                    .selection {
+                        display: flex;
+                        flex-flow: row wrap;
+                    }
+
+                    .selection > * {
                     }
 
                     room-workshop ul {
                         display: flex;
+                        flex-flow: row wrap;
                         list-style: none;
-                        gap: 8px;
+                    }
+
+                    room-workshop li {
+                        padding: 8px;
+                    }
+
+                    room-workshop .room-workshop-create span {
+                        text-align: center;
+                        display: block;
+                        width: 2em;
+                        height: 2em;
                     }
 
                     room-workshop img {
+                        display: block;
                         image-rendering: pixelated;
                         image-rendering: crisp-edges;
                         width: 2em;
-                        background: white;
                     }
                 </style>
 
-                <ul>
-                    <li>
-                        <button>+</button>
-                    </li>
-                </ul>
-                <button class="room-workshop-back">Back</button>
+                <h2>Workshop</h2>
+                <p>Edit and create tiles:</p>
+                <div style="flex: auto;">
+                    <ul>
+                        <li class="room-workshop-create" tabindex="0">
+                            <span>+</span>
+                        </li>
+                    </ul>
+                </div>
+                <button class="room-workshop-back">Close</button>
             </room-workshop>
 
-            <room-editor>
+            <room-editor class="window">
                 <style>
                     room-editor {
+                        display: block;
                         position: absolute;
                         inset: 0 0 0 0;
                         background: white;
                     }
 
+                    room-editor .room-editor-erasor {
+                        box-sizing: border-box;
+                        border: 4px solid var(--room-color-text);
+                    }
+
                     room-editor img {
                         opacity: 0;
+                        position: absolute;
+                    }
+
+                    room-editor form {
+                        display: flex;
+                        flex-flow: column;
+                        min-height: 100%;
+                    }
+
+                    .buttons {
+                        margin-top: auto;
+                        display: flex;
+                    }
+
+                    .buttons button:not(:first-child) {
+                        border-left: 4px solid var(--room-color-text);
                     }
                 </style>
 
                 <form>
+                    <h2>Tile Editor</h2>
                     <canvas width="8" height="8"></canvas>
-                    <fieldset id="colors"></fieldset>
+                    <fieldset id="colors" class="selection"></fieldset>
                     <label>
                         <input type="checkbox" name="wall"></input>
                         Wall
                     </label>
-                    <button>Done</button>
-                    <button id="editor-back" type="button">Back</button>
-                    <p></p>
+                    <p style="display: none;"></p>
+                    <div class="buttons">
+                        <button>Done</button>
+                        <button id="editor-back" type="button">Cancel</button>
+                    </div>
+                    <img />
                 </form>
-                <img />
             </room-editor>
 
             <template id="blueprint-template">

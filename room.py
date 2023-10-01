@@ -181,7 +181,52 @@ class MoveAction(Action):
     def json(self) -> dict[str, object]:
         return {**super().json(), 'position': self.position}
 
-VOID_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAFElEQVQYV2NkYGD4D8Q4AePIUAAAhWQIAUzZY7sAAAAASUVORK5CYII="
+IMAGES = {
+    'void': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKElEQVQYV2NkYGD4D8Q4ASNIQWhoKMPq1atRFMHEwAoImkAHBRQ5EgCbrhQB2kRr+QAAAABJRU5ErkJggg==',
+        False
+    ),
+    'grass': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAOElEQVQYV2NkWMXwnwEPYAQpCA0NZVi9ejVWZRgK0BWDFSBrJagA3R64Ceg6YXycCmAmYbgB3QoAnmIiUcgpwTgAAAAASUVORK5CYII=',
+        False
+    ),
+    'floor': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAFElEQVQYV2NctWrVfwY8gHFkKAAApMMX8a16WAwAAAAASUVORK5CYII=',
+        False
+    ),
+    'wall-h-left': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANUlEQVQYV2MMDQ39z4AHMIIUhDKsxqkErIBoE1YzhALhaiCE0CCAYgVBBTCrcJqAzS0EHQkARNYe+TqxIDUAAAAASUVORK5CYII=',
+        True
+    ),
+    'wall-h-middle': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAALElEQVQYV2MMDQ39z4AHMK4KZcCvgGgTVjOEAuFqIITQMAC3gmgF6O6l3JEA6qkZ+Y/de7cAAAAASUVORK5CYII=',
+        True
+    ),
+    'wall-h-right': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAMklEQVQYV2MMDQ39z4AHMK4KZcCpYDVDKAMjSSaAdIQyrAZCBI1iBdEKYG4Gu4FiRwIA43Ue+WpSWc4AAAAASUVORK5CYII=',
+        True
+    ),
+    'wall-v-middle': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAG0lEQVQYV2MMDQ39H8qwmgEbWM0QysA4MhQAAD2TH/nrMiedAAAAAElFTkSuQmCC',
+        True
+    ),
+    'wall-corner-bl': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANklEQVQYV2MMDQ39H8qwmgEbWM0QysCITwFIE1gBVu1QQQwTQMaCrITRpCuAWYfTBHT3EHQkAAj0IPmuXnNhAAAAAElFTkSuQmCC',
+        True
+    ),
+    'wall-corner-br': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPElEQVQYV2MMDQ39H8qwmgEbWM0QysC4KpThP1ZZoCBYAcgEXApA4mATQCpB1sBomAa4FUQrQLeKOo4EAB+iIPk9A4o5AAAAAElFTkSuQmCC',
+        True
+    ),
+    'wall-corner-tl': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAIUlEQVQYV2MMDQ39z4AHMIIUhDKsxqkEr4LVDKEMQ0IBAIgQHPlqSMNBAAAAAElFTkSuQmCC',
+        True
+    ),
+    'wall-corner-tr': (
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAJUlEQVQYV2MMDQ39z4AHMK4KZcCpYDVDKAMjyIRQhtVYzRgyCgBxZhz5QKrMXgAAAABJRU5ErkJggg==',
+        True
+    )
+}
 
 class Game:
     """TODO."""
@@ -192,9 +237,14 @@ class Game:
 
     def create_room(self) -> Room:
         """TODO."""
-        void = Tile(id=randstr(), image=VOID_IMAGE, wall=False)
+        blueprints = {
+            tile.id: tile
+            for tile in (Tile(randstr(), image, wall) for image, wall in IMAGES.values())
+        }
+        void = next(iter(blueprints.values()))
+        #void = Tile(id=randstr(), image=VOID_IMAGE, wall=False)
         tiles = [void] * (8 * 8)
-        room = Room(id=randstr(), blueprints={void.id: void}, tiles=tiles)
+        room = Room(id=randstr(), blueprints=blueprints, tiles=tiles)
         self.rooms[room.id] = room
         return room
 

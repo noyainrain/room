@@ -67,7 +67,10 @@ class GameElement extends HTMLElement {
             // const height = Math.floor(this.parentElement.offsetHeight / 8) * 8;
             // const maxHeight = Math.floor(this.parentElement.offsetHeight / 8) * 8;
             // const scale = maxHeight / this.offsetHeight;
-            this.scale = Math.floor(this.parentElement.offsetHeight / 64);
+            this.scale = Math.min(
+                Math.floor(this.parentElement.offsetWidth / 64),
+                Math.floor(this.parentElement.offsetHeight / 64)
+            );
             const height = this.scale * 64;
             this.#worldElement.scale = this.scale;
             this.#worldElement.style.transform = `scale(${this.scale})`;
@@ -146,6 +149,16 @@ class GameElement extends HTMLElement {
                 throw new Error("Assertion failed");
             }
         });
+
+        const intro = document.querySelector(".room-game-intro");
+        const tutorial = document.querySelector(".room-game-tutorial");
+        intro.querySelector("button").addEventListener("click", () => {
+            intro.style.display = "none";
+            tutorial.style.display = "block";
+        });
+        tutorial.querySelector("button").addEventListener("click", () => {
+            tutorial.style.display = "none";
+        });
     }
 
     set item(value) {
@@ -153,7 +166,7 @@ class GameElement extends HTMLElement {
         if (value) {
             this.#itemDiv.firstElementChild.src = value.image;
         } else {
-            this.#itemDiv.firstElementChild.src = this.#black;
+            this.#itemDiv.firstElementChild.src = "";
         }
         this.classList.toggle("room-world-has-item", value);
         this.#worldElement.item = value;
@@ -184,6 +197,7 @@ class GameElement extends HTMLElement {
     onUse(action) {
         console.log("USEEEE");
         const tile = this.blueprints[action.item_id];
+        this.#worldElement.room.tile_ids[action.tile_index] = tile.id;
         this.#worldElement.room.tiles[action.tile_index] = tile;
         this.querySelector(".room-world-map").children[action.tile_index].querySelector("img").src =
             tile.image;
@@ -223,6 +237,7 @@ class GameElement extends HTMLElement {
         for (let blueprint of Object.values(this.blueprints)) {
             let li = template.content.cloneNode(true).firstElementChild;
             li.querySelector("img").src = blueprint.image;
+            li.tabIndex = 0;
             li.dataset.tileID = blueprint.id;
             li.addEventListener("click", event => {
                 const i = Array.from(ul.children).indexOf(event.currentTarget);
@@ -234,6 +249,10 @@ class GameElement extends HTMLElement {
             });
             ul.append(li);
         }
+
+        const a = this.querySelector(".room-game-inventory a");
+        a.href = location.href;
+        a.textContent = location.href;
     }
 }
 customElements.define("room-game", GameElement);
@@ -335,6 +354,17 @@ class WorldElement extends HTMLElement {
                 updateTarget(event);
             }, TAP_TIMEOUT);
         });
+
+        const cleanup = () => {
+            clearTimeout(timeout);
+            t = null;
+            clearInterval(moveInterval);
+            moveInterval = null;
+            this.#target = null;
+        };
+        window.addEventListener("pointerup", event => {
+            cleanup();
+        });
         map.addEventListener("pointerup", event => {
             if (t && (new Date() - t < TAP_TIMEOUT)) {
                 // click
@@ -361,7 +391,7 @@ class WorldElement extends HTMLElement {
                         //this.querySelector(".room-world-map").children[i].querySelector("img").src = this.#item.image;
                         //localStorage.room = JSON.stringify(this.#room);
                     } else {
-                        window.alert("INTERACT");
+                        //window.alert("INTERACT");
                         // TODO change tile if it has an action attached
                         // -> build a door tile (open and closed)
                         // TODO add button for workshop
@@ -369,11 +399,8 @@ class WorldElement extends HTMLElement {
                     }
                 }
             }
-            clearTimeout(timeout);
-            t = null;
-            clearInterval(moveInterval);
-            moveInterval = null;
-            this.#target = null;
+
+            //cleanup();
         });
         map.addEventListener("pointermove", event => {
             // if (event.buttons) {
@@ -466,6 +493,9 @@ class WorldElement extends HTMLElement {
                 const xTile = this.#room.tiles[xI];
                 const yTile = this.#room.tiles[yI];
 
+                // move out of wall
+                const i = this.getIndex(this.#player.position);
+
                 //const fromI = this.getIndex(this.#player.position);
                 //const toI = this.getIndex(toPos);
                 //const to = this.#room.tiles[toI];
@@ -473,8 +503,8 @@ class WorldElement extends HTMLElement {
                 //const yAxis = this.getPosition(toI).y - this.getPosition(fromI).y;
 
                 this.#player.position = {
-                    x: xTile.wall ? this.#player.position.x : xPos.x,
-                    y: yTile.wall ? this.#player.position.y : yPos.y
+                    x: (xI !== i && xTile.wall) ? this.#player.position.x : xPos.x,
+                    y: (yI !== i && yTile.wall) ? this.#player.position.y : yPos.y
                 };
             }
         }
@@ -488,7 +518,8 @@ class WorldElement extends HTMLElement {
         const length = Vector.length(v);
         const i = this.getIndex(this.#pointer);
         const tile = this.#room.tiles[i];
-        if (tile.wall || this.#item) {
+        // if (tile.wall || this.#item) {
+        if (this.#item) {
             const d = this.#mapDiv.children[i];
             if (length <= 2 * 8) {
                 focus = d;
@@ -522,7 +553,7 @@ class WorkshopElement extends HTMLElement {
     set blueprints(value) {
         this.#blueprints = value;
         if (this.#blueprints) {
-            this.style.display = "block";
+            this.style.display = "flex";
             this.#renderBlueprints();
         } else {
             this.style.display = "none";
@@ -535,7 +566,7 @@ class WorkshopElement extends HTMLElement {
 
     connectedCallback() {
         // Blueprints view
-        this.querySelector("button").addEventListener("click", () => {
+        this.querySelector(".room-workshop-create").addEventListener("click", () => {
             this.#roomEditor.blueprint = {id: ""};
         });
         this.querySelector(".room-workshop-back").addEventListener("click", () => {
@@ -554,6 +585,7 @@ class WorkshopElement extends HTMLElement {
             let li = template.content.cloneNode(true).firstElementChild;
             li.querySelector("img").src = blueprint.image;
             li.dataset.tileID = blueprint.id;
+            li.tabIndex = "0"
             li.addEventListener("click", event => {
                 console.log("CLICK");
                 //event.currentTarget;
@@ -579,7 +611,7 @@ class EditorElement extends HTMLElement {
         const template = document.querySelector("#color-template");
 
         let label = template.content.cloneNode(true);
-        label.querySelector("span").textContent = "x";
+        label.querySelector("span").classList.add("room-editor-erasor");
         label.querySelector("input").value = "";
         fieldset.append(label);
 
