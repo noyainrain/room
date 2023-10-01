@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Room</title>
+
+        <style>
+            html {
+                font: normal / 1.5 sans-serif;
+                background: black;
+                overflow: hidden;
+            }
+
+            html,
+            body,
+            room-game {
+                height: 100vh;
+                margin: 0;
+            }
+
+            #colors input {
+                display: none;
+            }
+
+            #colors span {
+                display: inline-block;
+                width: 1em;
+                height: 1em;
+            }
+
+            #colors input:checked {
+                background: red;
+            }
+
+            #colors input:checked + span {
+                width: 1.5em;
+                height: 1.5em;
+            }
+
+            canvas {
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
+                width: 200px;
+                height: 200px;
+                background: #808080;
+            }
+        </style>
+    </head>
+
+    <body>
+        <room-game>
+            <style>
+                room-game {
+                    display: block;
+                    position: relative;
+                }
+
+                .room-game-inventory {
+                    display: none;
+                    position: absolute;
+                    left: 1em;
+                    top: 1em;
+                    background: gray;
+                    border: 8px solid gray;
+                }
+
+                .room-game-inventory ul {
+                    display: flex;
+                    flex-flow: row wrap;
+                    padding: 0;
+                    list-style: none;
+                }
+
+                .room-game-inventory .room-game-no-item {
+                    display: inline-block;
+                    width: 64px;
+                    height: 64px;
+                }
+
+                .room-game-inventory img {
+                    width: 64px;
+                    image-rendering: pixelated;
+                    image-rendering: crisp-edges;
+                }
+
+                .room-game-item {
+                    position: absolute;
+                    left: 1em;
+                    bottom: 1em;
+                    border: 8px solid rgb(170, 170, 170);
+                    background: black;
+                }
+
+                .room-game-item img {
+                    display: block;
+                    width: 2em;
+                    height: 2em;
+                    image-rendering: pixelated;
+                    image-rendering: crisp-edges;
+                }
+            </style>
+
+            <room-world>
+                <style>
+                    room-world {
+                        width: 64px;
+                        height: 64px;
+                        display: block;
+                        transform-origin: top left;
+                        user-select: none;
+                        image-rendering: pixelated;
+                        image-rendering: crisp-edges;
+                    }
+
+                    .room-world-map {
+                        display: grid;
+                        grid-template-columns: repeat(8, 1fr);
+                        /*justify-items: stretch;*/
+                    }
+
+                    .room-world-map div {
+                        position: relative;
+                    }
+
+                    .room-world-map div::before {
+                        content: "";
+                        visibility: hidden;
+                        position: absolute;
+                        inset: 0 0 0 0;
+                        background: rgb(255, 255, 255, 0.5);
+                    }
+
+                    room-world .room-world-map div.room-world-focused::before {
+                        visibility: visible;
+                    }
+
+                    .room-world-map img {
+                        display: block;
+                        width: 100%;
+                    }
+
+                    .room-entity {
+                        display: block;
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 8px;
+                        height: 8px;
+                    }
+
+                    .room-world-item {
+                        pointer-events: none;
+                        opacity: 0.5;
+                    }
+                </style>
+
+                <div class="room-world-map"></div>
+                <room-player></room-player>
+                <room-entity class="room-world-item"></room-entity>
+            </room-world>
+
+            <div class="room-game-item"><img /></div>
+
+            <div class="room-game-inventory">
+                <ul>
+                    <li class="room-game-no-item">x</li>
+                </ul>
+            </div>
+
+            <room-workshop>
+                <style>
+                    room-workshop {
+                        position: absolute;
+                        inset: 0 0 0 0;
+                        background: white;
+                    }
+
+                    room-workshop ul {
+                        display: flex;
+                        list-style: none;
+                        gap: 8px;
+                    }
+
+                    room-workshop img {
+                        image-rendering: pixelated;
+                        image-rendering: crisp-edges;
+                        width: 2em;
+                        background: white;
+                    }
+                </style>
+
+                <ul>
+                    <li>
+                        <button>+</button>
+                    </li>
+                </ul>
+                <button class="room-workshop-back">Back</button>
+            </room-workshop>
+
+            <room-editor>
+                <style>
+                    room-editor {
+                        position: absolute;
+                        inset: 0 0 0 0;
+                        background: white;
+                    }
+
+                    room-editor img {
+                        opacity: 0;
+                    }
+                </style>
+
+                <form>
+                    <canvas width="8" height="8"></canvas>
+                    <fieldset id="colors"></fieldset>
+                    <label>
+                        <input type="checkbox" name="wall"></input>
+                        Wall
+                    </label>
+                    <button>Done</button>
+                    <button id="editor-back" type="button">Back</button>
+                    <p></p>
+                </form>
+                <img />
+            </room-editor>
+
+            <template id="blueprint-template">
+                <li class="bluerpint"><img /></li>
+            </template>
+
+            <template id="color-template">
+                <label>
+                    <input type="radio" name="color" value="" />
+                    <span></span>
+                </label>
+            </template>
+        </room-game>
+
+        <script src="room.js"></script>
+    </body>
+</html>
