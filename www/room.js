@@ -109,7 +109,9 @@ class GameElement extends HTMLElement {
         if (!roomID) {
             roomID = localStorage.roomID ?? "new";
         }
-        this.#socket = new WebSocket(`ws://${location.host}/rooms/${roomID}`);
+        console.log("scheme", location.protocol);
+        const scheme = (location.protocol === "https:") ? "wss" : "ws";
+        this.#socket = new WebSocket(`${scheme}://${location.host}/rooms/${roomID}`);
         this.#socket.addEventListener("close", event => {
             console.log("OMG CLOSED", event.code, event.reason);
         });
