@@ -3,6 +3,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
         <title>Room</title>
 
         <style>
@@ -108,11 +109,12 @@
             canvas {
                 image-rendering: pixelated;
                 image-rendering: crisp-edges;
-                width: 256px;
-                height: 256px;
+                width: 50%;
+                align-self: start;
                 /*background: #808080;*/
                 margin: 8px;
                 border: 4px solid var(--room-color-text);
+                touch-action: none;
             }
 
             .window {
@@ -123,6 +125,7 @@
                 max-height: calc(100% - 16px);
                 background: var(--room-color-background);
                 overflow: auto;
+                touch-action: pan-x pan-y;
             }
         </style>
     </head>
@@ -130,6 +133,13 @@
     <body>
         <room-game>
             <style>
+                body {
+                    /* Disable zoom and text selection */
+                    touch-action: none;
+                    user-select: none;
+                    -webkit-user-select: none;
+                }
+
                 room-game {
                     display: block;
                     position: relative;
@@ -198,7 +208,6 @@
                         height: 64px;
                         display: block;
                         transform-origin: top left;
-                        user-select: none;
                         image-rendering: pixelated;
                         image-rendering: crisp-edges;
                     }
@@ -221,13 +230,15 @@
                         background: rgb(255, 255, 255, 0.5);
                     }
 
-                    room-world .room-world-map div.room-world-focused::before {
+                    body.room-hover .room-world-map div.room-world-focused::before {
                         visibility: visible;
                     }
 
                     .room-world-map img {
                         display: block;
                         width: 100%;
+                        /* Disable drag and long press */
+                        pointer-events: none;
                     }
 
                     .room-entity {
@@ -242,6 +253,10 @@
                     .room-world-item {
                         pointer-events: none;
                         opacity: 0.5;
+                    }
+
+                    body:not(.room-hover) .room-world-item {
+                        display: none !important;
                     }
                 </style>
 
@@ -379,6 +394,10 @@
                     <img />
                 </form>
             </room-editor>
+
+            <div class="room-game-connection window">
+                <p>Connecting…</p>
+            </div>
 
             <template id="blueprint-template">
                 <li class="bluerpint"><img /></li>

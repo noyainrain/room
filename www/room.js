@@ -63,6 +63,9 @@ class GameElement extends HTMLElement {
     }
 
     connectedCallback() {
+        // webkit bug: https://bugs.webkit.org/show_bug.cgi?id=149854
+        document.body.addEventListener("click", () => {});
+
         const resize = () => {
             // const height = Math.floor(this.parentElement.offsetHeight / 8) * 8;
             // const maxHeight = Math.floor(this.parentElement.offsetHeight / 8) * 8;
@@ -108,6 +111,8 @@ class GameElement extends HTMLElement {
             this.showWorkshop();
         });
 
+        const connectionWindow = this.querySelector(".room-game-connection");
+
         let roomID = location.hash.slice(1);
         if (!roomID) {
             roomID = localStorage.roomID ?? "new";
@@ -117,12 +122,14 @@ class GameElement extends HTMLElement {
         this.#socket = new WebSocket(`${scheme}://${location.host}/rooms/${roomID}`);
         this.#socket.addEventListener("close", event => {
             console.log("OMG CLOSED", event.code, event.reason);
+            connectionWindow.style.display = "block";
         });
         this.#socket.addEventListener("error", () => {
             console.log("OMG ERROR");
         });
         this.#socket.addEventListener("open", () => {
             console.log("OMG open");
+            connectionWindow.style.display = "none";
         });
         this.#socket.addEventListener("message", event => {
             console.log("MESSAGE RECEIVED", event.data);
@@ -348,7 +355,6 @@ class WorldElement extends HTMLElement {
         let timeout = null;
         const TAP_TIMEOUT = 200;
         map.addEventListener("pointerdown", event => {
-            event.preventDefault();
             t = new Date();
             timeout = setTimeout(() => {
                 updateTarget(event);
@@ -402,6 +408,18 @@ class WorldElement extends HTMLElement {
 
             //cleanup();
         });
+
+        map.addEventListener("pointerenter", event => {
+            map.classList.add("room-hover");
+            this.#pointer = {
+                x: Math.min(Math.max(event.clientX / this.#gameElement.scale, 0), 63),
+                y: Math.min(Math.max(event.clientY / this.#gameElement.scale, 0), 63)
+            };
+            this.#itemElement.position = {x: event.clientX / this.#gameElement.scale, y: event.clientY / this.#gameElement.scale};
+        });
+        map.addEventListener("pointerleave", event => {
+            map.classList.remove("room-hover");
+        });
         map.addEventListener("pointermove", event => {
             // if (event.buttons) {
             this.#pointer = {
@@ -430,6 +448,7 @@ class WorldElement extends HTMLElement {
             img.src = tile.image;
             d.append(img);
             div.append(d);
+
             //d.addEventListener("click", event => {
             //    //document.querySelector("room-game").showWorkshop();
             //    if (this.#item) {
@@ -635,16 +654,11 @@ class EditorElement extends HTMLElement {
             this.#context.fillStyle = color;
         });
 
-        let pointerDown = false;
-        this.#canvas.addEventListener("pointerdown", () => {
-            pointerDown = true;
-        });
         this.#canvas.addEventListener("pointerup", () => {
-            pointerDown = false;
             this.querySelector("p").textContent = this.#canvas.toDataURL();
         });
-        this.#canvas.addEventListener("pointermove", event => {
-            if (pointerDown) {
+        const draw = event => {
+            if (event.buttons) {
                 const x = Math.floor(event.offsetX / (this.#canvas.offsetWidth / 8));
                 const y = Math.floor(event.offsetY / (this.#canvas.offsetHeight / 8));
                 if (!color) {
@@ -653,7 +667,9 @@ class EditorElement extends HTMLElement {
                     this.#context.fillRect(x, y, 1, 1);
                 }
             }
-        });
+        };
+        this.#canvas.addEventListener("pointerdown", draw);
+        this.#canvas.addEventListener("pointermove", draw);
 
         this.querySelector("form").addEventListener("submit", event => {
             event.preventDefault();

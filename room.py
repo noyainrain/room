@@ -249,21 +249,24 @@ class Game:
         return room
 
     async def run(self) -> None:
+        logger = getLogger(__name__)
+
         for path in Path('data').iterdir():
             data = json.loads(path.read_text(encoding='utf-8'))
             room = Room.parse(data)
             self.rooms[room.id] = room
+        logger.info('Loaded %d room(s)', len(self.rooms))
 
         while True:
-            # await sleep(5 * 60)
-            await sleep(5)
+            await sleep(5 * 60)
             for room in self.rooms.values():
                 path = Path('data', f'{room.id}.json')
                 path.write_text(json.dumps(room.json()), encoding='utf-8')
-                getLogger(__name__).info(f'Stored {path}')
+            logger.info('Saved %d room(s)', len(self.rooms))
 
 @routes.get('/rooms/{id}')
 async def _rooms(request: Request) -> WebSocketResponse:
+    logger = getLogger(__name__)
     websocket = WebSocketResponse()
     await websocket.prepare(request)
 
@@ -275,12 +278,15 @@ async def _rooms(request: Request) -> WebSocketResponse:
 
     async def write() -> None:
         actions = room.actions()
-        print('STARTED WRITE LOOP')
         try:
             async for action in actions:
+                if isinstance(action, JoinAction):
+                    stats = [count for room in game.rooms.values() if (count := len(room._queues))]
+                    logger.info('%s %s GET %s … (%d client(s) in %d room(s))', request.remote,
+                                action.user_id, request.rel_url, sum(stats), len(stats))
                 #print('SENDING MESSAGE', action)
                 # await websocket.send_str(json.dumps(action.json()))
-                    await websocket.send_json(action.json())
+                await websocket.send_json(action.json())
         except CancelledError:
             print('CANCELLED')
         finally:
@@ -290,20 +296,20 @@ async def _rooms(request: Request) -> WebSocketResponse:
             print('AFTER ACLOSE')
     task = create_task(write())
 
-    getLogger(__name__).info('Client joined (%s)', request.remote)
-
     async for message in websocket:
-        print('WEBSOCKET MESSAGE', message.data)
         # data = cast(dict[str, object], json.loads(message))
         data = cast(dict[str, object], message.json())
-        if data['type'] == 'UpdateBlueprintAction':
+        action_type = data['type']
+        if action_type == 'UpdateBlueprintAction':
             await room.update_blueprint(UpdateBlueprintAction.parse(data))
-        elif data['type'] == 'UseAction':
+        elif action_type == 'UseAction':
             await room.use(UseAction.parse(data))
-        elif data['type'] == 'MoveAction':
+        elif action_type == 'MoveAction':
             await room.move(MoveAction.parse(data))
         else:
             assert False
+        if action_type != 'MoveAction':
+            logger.info('%s %s %s ok', request.remote, data['user_id'], action_type)
         #try:
         #except Exception:
         #    getLogger(__name__).exception('FATAL')
@@ -336,7 +342,7 @@ async def main() -> None:
     # runner = AppRunner(app, access_log_class=Logger)
     runner = AppRunner(app)
     await runner.setup()
-    site = TCPSite(runner, 'localhost', 8000)
+    site = TCPSite(runner, '', 8000)
     await site.start()
     logger.info('Started server')
 
