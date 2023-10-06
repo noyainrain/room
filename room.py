@@ -100,6 +100,8 @@ class Room:
         self._queues.add(queue)
         user_id = randstr()
         yield JoinAction(user_id=user_id, room=self)
+        await self.publish(MoveAction(user_id, (32, 32)))
+
         while True:
             try:
                 yield await queue.get()
@@ -110,7 +112,6 @@ class Room:
             # TODO handle
             #except GeneratorExit:
             #    break
-        print('EXIT ACITONS')
 
     async def publish(self, action: Action) -> None:
         # print('PUBLISH', message)
@@ -287,13 +288,9 @@ async def _rooms(request: Request) -> WebSocketResponse:
                 #print('SENDING MESSAGE', action)
                 # await websocket.send_str(json.dumps(action.json()))
                 await websocket.send_json(action.json())
-        except CancelledError:
-            print('CANCELLED')
         finally:
-            print('CLOSED WRITE LOOP')
             await actions.aclose()
             await actions.aclose()
-            print('AFTER ACLOSE')
     task = create_task(write())
 
     async for message in websocket:
@@ -309,7 +306,7 @@ async def _rooms(request: Request) -> WebSocketResponse:
         else:
             assert False
         if action_type != 'MoveAction':
-            logger.info('%s %s %s ok', request.remote, data['user_id'], action_type)
+            logger.info('%s %s %s @%s ok', request.remote, data['user_id'], action_type, room.id)
         #try:
         #except Exception:
         #    getLogger(__name__).exception('FATAL')
@@ -334,15 +331,19 @@ async def main() -> None:
 
     index_html = Path('index.html').read_text(encoding='utf-8')
 
+    class Logger(AbstractAccessLogger):
+        def log(self, request: BaseRequest, response: StreamResponse, time: float) -> None:
+            logger.log(
+                logging.WARNING if response.status >= 400 else logging.INFO, '%s %s %s %s %d',
+                request.remote, '-', request.method, request.rel_url, response.status)
     runner = None
     site = None
     app = Application()
     #app['community'] = community
     app.add_routes(routes)
-    # runner = AppRunner(app, access_log_class=Logger)
-    runner = AppRunner(app)
+    runner = AppRunner(app, access_log_class=Logger)
     await runner.setup()
-    site = TCPSite(runner, '', 8000)
+    site = TCPSite(runner, 'localhost', 8000)
     await site.start()
     logger.info('Started server')
 

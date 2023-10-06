@@ -166,6 +166,11 @@ class GameElement extends HTMLElement {
         tutorial.querySelector("button").addEventListener("click", () => {
             tutorial.style.display = "none";
         });
+
+        // TODO better structured DOM
+        for (let child of this.querySelectorAll(".window")) {
+            child.addEventListener("pointerdown", event => event.stopPropagation());
+        }
     }
 
     set item(value) {
@@ -215,6 +220,15 @@ class GameElement extends HTMLElement {
             return;
         }
         this.#worldElement.movePlayer(action.user_id, {x: action.position[0], y: action.position[1]});
+    }
+
+    move(position) {
+        const action = {
+            type: "MoveAction",
+            user_id: this.userID,
+            position: [position.x, position.y]
+        };
+        this.run(action);
     }
 
     run(action) {
@@ -337,14 +351,9 @@ class WorldElement extends HTMLElement {
                 y: Math.min(Math.max(event.clientY / this.#gameElement.scale, 0), 63)
             };
             if (!moveInterval) {
-                moveInterval = setInterval(() => {
-                    const action = {
-                        type: "MoveAction",
-                        user_id: this.#gameElement.userID,
-                        position: [this.#player.position.x, this.#player.position.y]
-                    };
-                    this.#gameElement.run(action);
-                }, 1000 / 8);
+                moveInterval = setInterval(
+                    () => this.#gameElement.move(this.#player.position), 1000 / 8
+                );
             }
             //this.#target = {
             //    x: event.target.offsetLeft + event.offsetX, y: event.target.offsetTop + event.offsetY
@@ -432,6 +441,9 @@ class WorldElement extends HTMLElement {
             this.#itemElement.position = {x: event.clientX / this.#gameElement.scale, y: event.clientY / this.#gameElement.scale};
         });
 
+        // (keepalive) Popular proxy servers have a default timeout of 60 s
+        const HEARTBEAT = 60 / 2;
+        setInterval(() => this.#gameElement.move(this.#player.position), HEARTBEAT * 1000);
         this.#step();
     }
 
