@@ -1,0 +1,52 @@
+name: Check Code
+on:
+    - push
+    - pull_request
+jobs:
+    check:
+        strategy:
+            matrix:
+                python:
+                    - "3.9"
+                    - "3.10"
+                    - "3.11"
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v4
+              with:
+                  python-version: ${{ matrix.python }}
+            - run: make deps deps-dev
+            - run: make type
+            - run: make test
+            - run: make lint
+              continue-on-error: ${{ contains(github.event.head_commit.message, 'WIP') }}
+
+    test-ui:
+        needs: check
+        strategy:
+            matrix:
+                include:
+                    - browser: chrome
+                      platform: Windows 11
+                    - browser: MicrosoftEdge
+                      platform: Windows 11
+                    - browser: firefox
+                      platform: Linux
+        runs-on: ubuntu-latest
+        env:
+            WEBDRIVER_URL: https://${{ secrets.SAUCE_USER }}:${{ secrets.SAUCE_ACCESS_KEY }}@ondemand.us-west-1.saucelabs.com/wd/hub
+            WEBDRIVER_BROWSER: ${{ matrix.browser }}
+            WEBDRIVER_PLATFORM: ${{ matrix.platform }}
+            WEBDRIVER_SUBJECT: "#${{ github.run_number }}"
+            WEBDRIVER_TUNNEL: ${{ github.run_id }}-${{ matrix.browser }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: saucelabs/sauce-connect-action@v2
+              with:
+                  username: ${{ secrets.SAUCE_USER }}
+                  accessKey: ${{ secrets.SAUCE_ACCESS_KEY }}
+                  tunnelName: ${{ env.WEBDRIVER_TUNNEL }}
+                  noSSLBumpDomains: all
+            - run: make deps deps-dev
+            - run: make test-ui

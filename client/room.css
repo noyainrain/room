@@ -1,0 +1,169 @@
+* {
+    box-sizing: border-box;
+}
+
+html {
+    --room-color-text: white;
+    --room-color-background: #2a2a2a;
+    --room-size-gap: 0.5rem;
+    --room-size-border: 0.25rem;
+    height: 100dvh;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    font: medium / 1.5 sans-serif;
+    image-rendering: pixelated;
+    color: var(--room-color-text);
+    background: black;
+    /* Disable zooming */
+    touch-action: none;
+}
+
+body {
+    height: 100%;
+    margin: unset;
+}
+
+.block,
+h1,
+h2,
+p,
+ul,
+button,
+fieldset {
+    display: block;
+    padding: var(--room-size-gap);
+    margin: unset;
+}
+
+.block:empty,
+h1:empty,
+h2:empty,
+p:empty,
+ul:empty,
+button:empty,
+fieldset:empty {
+    display: none;
+}
+
+h1,
+h2 {
+    border-bottom: var(--room-size-border) solid;
+    font-size: unset;
+    font-weight: bold;
+}
+
+button,
+a.block {
+    width: 100%;
+    border: solid var(--room-color-text);
+    border-width: var(--room-size-border) 0;
+    font: unset;
+    text-align: unset;
+    text-decoration: unset;
+    color: unset;
+    background: unset;
+    cursor: pointer;
+}
+
+header + button,
+button + button,
+a.block + button,
+header + a.block,
+button + a.block,
+a.block + a.block {
+    border-top: unset;
+}
+
+button:last-child,
+a.block:last-child {
+    border-bottom: unset;
+}
+
+fieldset {
+    border: unset;
+}
+
+[tabindex]:focus,
+[tabindex]:hover,
+button:focus,
+button:hover,
+a.block:focus,
+a.block:hover,
+label:focus-within,
+label:hover {
+    outline: unset;
+    color: var(--room-color-background);
+    background: var(--room-color-text);
+}
+
+.icon {
+    height: 1em;
+    vertical-align: calc(-1em / 8);
+}
+
+.tile {
+    display: block;
+    width: 2em;
+    height: 2em;
+    line-height: 2;
+    text-align: center;
+}
+
+.placeholder {
+    border: var(--room-size-border) solid transparent;
+    background:
+        linear-gradient(to right, currentcolor 50%, transparent 50%) top left /
+            calc(2 * var(--room-size-border)) var(--room-size-border) repeat-x,
+        linear-gradient(currentcolor 50%, transparent 50%) top left /
+            var(--room-size-border) calc(2 * var(--room-size-border)) repeat-y,
+        linear-gradient(to right, transparent 50%, currentcolor 50%) bottom right /
+            calc(2 * var(--room-size-border)) var(--room-size-border) repeat-x,
+        linear-gradient(transparent 50%, currentcolor 50%) bottom right /
+            var(--room-size-border) calc(2 * var(--room-size-border)) repeat-y;
+    background-origin: border-box;
+}
+
+.room-window {
+    position: absolute;
+    inset: var(--room-size-gap) var(--room-size-gap) auto var(--room-size-gap);
+    max-height: calc(100% - 2 * var(--room-size-gap));
+    overflow: hidden auto;
+    background: var(--room-color-background);
+    /* Enable window scrolling */
+    touch-action: pan-y;
+}
+
+.room-window:not(.room-window-open) {
+    display: none;
+}
+
+.room-window header {
+    display: flex;
+    border-bottom: solid var(--room-color-text);
+}
+
+.room-window header h2 {
+    border: unset;
+    flex: auto;
+}
+
+.room-window header button {
+    box-sizing: content-box;
+    width: unset;
+    min-width: 1.5em;
+    border-width: 0 0 0 var(--room-size-border);
+    text-align: center;
+}
+
+.room-entity {
+    --room-entity-x: 0;
+    --room-entity-y: 0;
+    --room-entity-image: none;
+    display: block;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 8px;
+    height: 8px;
+    translate: calc(var(--room-entity-x) - 50%) calc(var(--room-entity-y) - 50%);
+    background: var(--room-entity-image);
+}

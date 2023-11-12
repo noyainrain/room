@@ -1,0 +1,12 @@
+{
+    "type": "module",
+    "scripts": {
+        "type": "tsc --project jsconfig.json",
+        "lint": "eslint .",
+        "clean": "rm --recursive --force node_modules"
+    },
+    "devDependencies": {
+        "typescript": "^5.2",
+        "eslint": "^8.53"
+    }
+}

@@ -1,1 +1,4 @@
+__pycache__/
+/room.ini
 /data/
+/client/node_modules/

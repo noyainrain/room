@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+
+        <title>Room</title>
+        <meta name="description" content="Sandbox game about being creative in a limited space." />
+        <meta name="keywords" content="sandbox, game, pixel art" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="{url}" />
+        <meta property="og:title" content="Room" />
+        <meta
+            property="og:description"
+            content="Sandbox game about being creative in a limited space."
+        />
+        <!--
+            Size as suggested by https://developers.facebook.com/docs/sharing/webmasters/images and
+            https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image
+        -->
+        <meta property="og:image" content="{url}/static/images/social.png" />
+        <meta property="og:image:alt" content="Room icon." />
+
+        <link rel="icon" href="/static/images/icon.png" />
+        <link rel="stylesheet" href="/static/room.css" />
+        <script type="module" src="/static/room/game.js"></script>
+    </head>
+
+    <body>
+        <room-game>
+            <style>
+                room-game {
+                    --room-game-scale: 1;
+                    --room-game-room-size: 8;
+                    display: block;
+                    height: 100%;
+                }
+
+                .room-game-content {
+                    width: calc(var(--room-game-scale) * var(--room-game-room-size) * 8px);
+                    height: calc(var(--room-game-scale) * var(--room-game-room-size) * 8px);
+                }
+
+                .room-game-scene {
+                    height: 100%;
+                    user-select: none;
+                    -webkit-user-select: none;
+                }
+
+                .room-game-scene .room-game-content {
+                    width: calc(var(--room-game-room-size) * 8px);
+                    height: calc(var(--room-game-room-size) * 8px);
+                    transform: scale(var(--room-game-scale));
+                    transform-origin: left top;
+                }
+
+                .room-game-tiles {
+                    display: grid;
+                    grid: repeat(var(--room-game-room-size), 1fr) / repeat(var(--room-game-room-size), 1fr);
+                }
+
+                .room-game-tile {
+                    position: relative;
+                }
+
+                .room-game-tile::after {
+                    position: absolute;
+                    inset: 0;
+                    content: "";
+                    background: white;
+                    opacity: 0.5;
+                }
+
+                .room-game-tile:not(.room-game-tile-focused)::after {
+                    display: none;
+                }
+
+                .room-game-tile img {
+                    display: block;
+                    /* Disable dragging and context menu */
+                    pointer-events: none;
+                }
+
+                .room-game-item {
+                    opacity: 0.5;
+                }
+
+                .room-game-scene:not(.room-game-scene-has-pointer) .room-game-item {
+                    display: none;
+                }
+
+                .room-game-hud {
+                    position: absolute;
+                    inset: 0 auto auto 0;
+                    pointer-events: none;
+                }
+
+                .room-game-hud > * {
+                    pointer-events: auto;
+                }
+
+                .room-game-equipment {
+                    position: absolute;
+                    inset: auto auto var(--room-size-gap) var(--room-size-gap);
+                    background: var(--room-color-background);
+                }
+
+                .room-game-equipment img[src=""] {
+                    display: none;
+                }
+
+                .room-game-equipment img:not([src=""]) + span {
+                    display: none;
+                }
+            </style>
+
+            <template class="room-game-tile-template">
+                <div class="room-game-tile"><img /></div>
+            </template>
+
+            <div class="room-game-scene">
+                <div class="room-game-content">
+                    <div class="room-game-tiles"></div>
+                    <room-entity class="room-game-item"></room-entity>
+                </div>
+            </div>
+
+            <div class="room-game-hud room-game-content">
+                <p class="room-game-equipment" tabindex="0">
+                    <img class="tile" src="" />
+                    <span class="tile placeholder"></span>
+                </p>
+
+                <room-inventory>
+                    <style>
+                        room-inventory ul {
+                            display: flex;
+                            padding: 0;
+                            flex-flow: row wrap;
+                            list-style: none;
+                        }
+
+                        room-inventory li {
+                            padding: var(--room-size-gap);
+                        }
+                    </style>
+
+                    <template class="room-inventory-item-template">
+                        <li class="room-inventory-item" tabindex="0"><img class="tile" /></li>
+                    </template>
+
+                    <header>
+                        <h2>Inventory</h2>
+                        <button class="room-inventory-close">
+                            <img class="icon" src="/static/images/close.png" alt="Close" />
+                        </button>
+                    </header>
+                    <ul>
+                        <li class="room-inventory-no-item" tabindex="0">
+                            <span class="tile placeholder"></span>
+                        </li>
+                    </ul>
+                    <button class="room-inventory-open-workshop">Open Workshop</button>
+                    <a class="block">Invite Link: <span></span></a>
+                    <button class="room-inventory-open-credits">Credits</button>
+                </room-inventory>
+
+                <room-credits>
+                    <style>
+                        room-credits a.block {
+                            text-align: center;
+                        }
+                    </style>
+
+                    <header>
+                        <h2><img class="icon" src="/static/images/icon.png" alt="" /> Credits</h2>
+                        <button>
+                            <img class="icon" src="/static/images/close.png" alt="Close" />
+                        </button>
+                    </header>
+                    <a class="block" href="https://www.twitch.tv/noyainrain" target="_blank">
+                        Made live on twitch.tv/noyainrain
+                    </a>
+                    <a
+                        class="block" href="https://ldjam.com/events/ludum-dare/54/room"
+                        target="_blank"
+                    >
+                        Built in 48 hours for Ludum Dare 54
+                    </a>
+                    <a class="block" href="https://discord.gg/Jey5jCJy2T" target="_blank">
+                        Community
+                    </a>
+                    <a class="block" href="https://github.com/noyainrain/room" target="_blank">
+                        Source Code
+                    </a>
+                </room-credits>
+
+                <room-workshop>
+                    <style>
+                        room-workshop ul {
+                            display: flex;
+                            padding: 0;
+                            flex-flow: row wrap;
+                            list-style: none;
+                        }
+
+                        room-workshop li {
+                            padding: var(--room-size-gap);
+                        }
+                    </style>
+
+                    <template class="room-workshop-blueprint-template">
+                        <li class="room-workshop-blueprint" tabindex="0"><img class="tile" /></li>
+                    </template>
+
+                    <header>
+                        <h2>Workshop</h2>
+                        <button class="room-workshop-close">
+                            <img class="icon" src="/static/images/close.png" alt="Close" />
+                        </button>
+                    </header>
+                    <p>Create and edit tiles:</p>
+                    <ul>
+                        <li class="room-workshop-create-blueprint" tabindex="0">
+                            <span class="tile">
+                                <img class="icon" src="/static/images/add.png" alt="Create" />
+                            </span>
+                        </li>
+                    </ul>
+                </room-workshop>
+
+                <room-blueprint>
+                    <style>
+                        room-blueprint.room-window {
+                            bottom: var(--room-size-gap);
+                        }
+
+                        room-blueprint form {
+                            display: flex;
+                            height: 100%;
+                            flex-flow: column;
+                        }
+
+                        room-blueprint canvas {
+                            align-self: start;
+                            flex: auto;
+                            border: var(--room-size-border) solid;
+                            margin: var(--room-size-gap);
+                            /* Disable window scrolling */
+                            touch-action: none;
+                        }
+
+                        room-blueprint-source {
+                            display: none;
+                        }
+
+                        room-blueprint fieldset {
+                            display: flex;
+                            padding: var(--room-size-gap);
+                            flex-flow: row wrap;
+                        }
+
+                        .room-blueprint-color {
+                            --room-blueprint-color-value: "";
+                        }
+
+                        .room-blueprint-color:focus,
+                        .room-blueprint-color:hover {
+                            color: unset;
+                            background: unset;
+                        }
+
+                        .room-blueprint-color input {
+                            display: none;
+                        }
+
+                        .room-blueprint-color span {
+                            display: block;
+                            width: 1.5em;
+                            height: 1.5em;
+                        }
+
+                        .room-blueprint-color span:not(.placeholder) {
+                            background: var(--room-blueprint-color-value);
+                        }
+
+                        .room-blueprint-color:focus span,
+                        .room-blueprint-color:hover span,
+                        .room-blueprint-color input:checked + span {
+                            border: var(--room-size-border) solid;
+                        }
+
+                        .room-blueprint-wall  {
+                            padding: var(--room-size-gap);
+                        }
+                    </style>
+
+                    <template class="room-blueprint-color-template">
+                        <label class="room-blueprint-color" tabindex="0">
+                            <input type="radio" name="color" />
+                            <span></span>
+                        </label>
+                    </template>
+
+                    <form>
+                        <header>
+                            <h2>Tile Editor</h2>
+                            <button>Done</button>
+                            <button class="room-blueprint-back" type="button">
+                                <img class="icon" src="/static/images/back.png" alt="Back" />
+                            </button>
+                        </header>
+                        <canvas width="8" height="8"></canvas>
+                        <img class="room-blueprint-source" />
+                        <fieldset></fieldset>
+                        <label class="room-blueprint-wall">
+                            <input type="checkbox" name="wall"></input> Wall
+                        </label>
+                    </form>
+                </room-blueprint>
+
+                <room-dialog>
+                    <h2></h2>
+                    <p></p>
+                    <button></button>
+                </room-dialog>
+
+                <room-window class="room-game-connection">
+                    <p>Connecting…</p>
+                </room>
+            </div>
+        </room-game>
+    </body>
+</html>
