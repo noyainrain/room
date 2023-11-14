@@ -31,14 +31,15 @@
             <style>
                 room-game {
                     --room-game-scale: 1;
-                    --room-game-room-size: 8;
+                    --room-game-room-width: 16;
+                    --room-game-room-height: 9;
                     display: block;
                     height: 100%;
                 }
 
                 .room-game-content {
-                    width: calc(var(--room-game-scale) * var(--room-game-room-size) * 8px);
-                    height: calc(var(--room-game-scale) * var(--room-game-room-size) * 8px);
+                    width: calc(var(--room-game-scale) * var(--room-game-room-width) * 8px);
+                    height: calc(var(--room-game-scale) * var(--room-game-room-height) * 8px);
                 }
 
                 .room-game-scene {
@@ -48,15 +49,15 @@
                 }
 
                 .room-game-scene .room-game-content {
-                    width: calc(var(--room-game-room-size) * 8px);
-                    height: calc(var(--room-game-room-size) * 8px);
+                    width: calc(var(--room-game-room-width) * 8px);
+                    height: calc(var(--room-game-room-height) * 8px);
                     transform: scale(var(--room-game-scale));
                     transform-origin: left top;
                 }
 
                 .room-game-tiles {
                     display: grid;
-                    grid: repeat(var(--room-game-room-size), 1fr) / repeat(var(--room-game-room-size), 1fr);
+                    grid: repeat(var(--room-game-room-height), 1fr) / repeat(var(--room-game-room-width), 1fr);
                 }
 
                 .room-game-tile {
@@ -108,6 +109,12 @@
 
                 .room-game-equipment img:not([src=""]) + span {
                     display: none;
+                }
+
+                .room-game-info {
+                    position: absolute;
+                    inset: 0 0 auto auto;
+                    pointer-events: none;
                 }
             </style>
 
@@ -327,7 +334,9 @@
 
                 <room-window class="room-game-connection">
                     <p>Connecting…</p>
-                </room>
+                </room-window>
+
+                <p class="room-game-info"></p>
             </div>
         </room-game>
     </body>

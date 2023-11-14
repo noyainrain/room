@@ -385,9 +385,8 @@ customElements.define("room-entity", EntityElement);
  * @fires {ActionEvent#MovePlayerAction}
  */
 class GameElement extends HTMLElement {
-    static #ROOM_SIZE = 8;
-    static #ROOM_WIDTH = this.#ROOM_SIZE;
-    static #ROOM_HEIGHT = this.#ROOM_SIZE;
+    static #ROOM_WIDTH = 16;
+    static #ROOM_HEIGHT = 9;
     // In px
     static #TILE_SIZE = 8;
     static #PLAYER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII=";
@@ -485,7 +484,10 @@ class GameElement extends HTMLElement {
         addEventListener("unhandledrejection", showError);
 
         const equipmentElement = querySelector(this, ".room-game-equipment");
-        equipmentElement.addEventListener("click", () => this.inventoryWindow.toggle());
+        equipmentElement.addEventListener("click", () => {
+            //this.requestFullscreen();
+            this.inventoryWindow.toggle()
+        });
         this.inventoryWindow.addEventListener("select", event => {
             this.#item = /** @type {InventoryEvent} */ (event).item;
             this.classList.toggle("room-game-equipped", Boolean(this.#item));
@@ -523,11 +525,23 @@ class GameElement extends HTMLElement {
 
     connectedCallback() {
         const scale = () => {
-            const size = GameElement.#ROOM_SIZE * GameElement.#TILE_SIZE;
             this.#scale = Math.min(
-                Math.floor(this.offsetWidth / size), Math.floor(this.offsetHeight / size)
-            );
+                Math.floor(
+                    this.offsetWidth * devicePixelRatio /
+                    (GameElement.#ROOM_WIDTH * GameElement.#TILE_SIZE)
+                ),
+                Math.floor(
+                    this.offsetHeight * devicePixelRatio /
+                    (GameElement.#ROOM_HEIGHT * GameElement.#TILE_SIZE)
+                )
+            ) / devicePixelRatio;
+            // TODO hm
+            if (!document.fullscreenElement) {
+                this.#scale = Math.min(this.#scale, 8);
+            }
             this.style.setProperty("--room-game-scale", this.#scale.toString());
+            querySelector(this, ".room-game-info").textContent =
+                `${this.offsetWidth} x ${this.offsetHeight} @ ${devicePixelRatio} (${this.#scale.toFixed(2)}x)`
         };
         addEventListener("resize", scale);
         scale();

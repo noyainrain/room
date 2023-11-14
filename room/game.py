@@ -111,8 +111,8 @@ class Player(BaseModel): # type: ignore[misc]
 
         async def perform(self) -> Player.MovePlayerAction:
             room = context.room.get()
-            size = room.SIZE * Tile.SIZE
-            if not (0 <= self.position[0] < size and 0 <= self.position[1] < size):
+            if not (0 <= self.position[0] < room.WIDTH * Tile.SIZE and
+                    0 <= self.position[1] < room.HEIGHT * Tile.SIZE):
                 raise ValueError(f'Out-of-range position {self.position}')
             self.player.position = self.position
             await room.publish(self)
@@ -285,9 +285,8 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
        Room height.
     """
 
-    SIZE: ClassVar[int] = 8
-    WIDTH: ClassVar[int] = SIZE
-    HEIGHT: ClassVar[int] = SIZE
+    WIDTH: ClassVar[int] = 16 # 32
+    HEIGHT: ClassVar[int] = 9 # 18
 
     id: str
     tile_ids: list[str]
@@ -301,6 +300,23 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
         if data.get('version') in {None, '0.1'}:
             data['version'] = '0.2'
         return data
+
+    @model_validator(mode='after')
+    def _check_after(self) -> OfflineRoom:
+        # 81, 144, 576
+        if len(self.tile_ids) == 8 * 8:
+            print('UPDATING TILE IDS', len(self.tile_ids))
+            void = next(iter(self.blueprints.values()))
+            n = 8
+            x = self.WIDTH - 8
+            y = self.HEIGHT - 8
+            tiles = []
+            for i in range(0, 64, n):
+                tiles.extend(self.tile_ids[i:i + n] + [void.id] * x)
+            tiles.extend([void.id] * self.WIDTH * y)
+            self.tile_ids = tiles
+            print('AFTER UPDATE', self.tile_ids, len(self.tile_ids))
+        return self
 
     @property
     def tiles(self) -> list[Tile]:
@@ -323,7 +339,8 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
 
         On exit, leave the room again.
         """
-        player = Player(id=randstr(), position=(self.SIZE * Tile.SIZE / 2, ) * 2)
+        player = Player(id=randstr(),
+                        position=(self.WIDTH * Tile.SIZE / 2, self.HEIGHT * Tile.SIZE / 2))
         await self.publish(Player.MovePlayerAction(player_id=player.id, position=player.position))
         self.players[player.id] = player
         await player.publish(self.WelcomeAction(player_id=player.id, room=self))
