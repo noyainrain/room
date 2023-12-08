@@ -308,6 +308,95 @@ class BlueprintElement extends WindowElement {
 }
 customElements.define("room-blueprint", BlueprintElement);
 
+/** TODO. */
+class EffectsElement extends WindowElement {
+    /** @type {[Cause, Effect[]][]} */
+    //#effects = [];
+
+    /** TODO. */
+    get effects() {
+        // TODO iterate over the dl and all causes and effects
+        // TODO assemble and return JSON object
+        return [];
+    }
+
+    /** @param {[Cause, Effect[]][]} value */
+    set effects(value) {
+        //this.#effects = value;
+        for (const [cause, effects] of value) {
+            this.#addCause(cause, effects);
+        }
+    }
+
+    /**
+     * @param {Cause} cause
+     * @param {Effect[]} effects
+     */
+    #addCause(cause, effects) {
+        console.log("ADDING CAUSE", cause);
+        const template = querySelector(this, ".room-effects-item-template", HTMLTemplateElement);
+        const fragment = template.content.cloneNode(true);
+        const dl = querySelector(this, "dl");
+        // dl.append(fragment);
+        const addCauseElement = querySelector(this, ".room-effects-add-cause");
+        addCauseElement.before(fragment);
+        const element = querySelector(dl, "room-cause", CauseElement);
+        element.cause = cause;
+        const ul = querySelector(dl, "ul", HTMLUListElement);
+        for (const effect of effects) {
+            this.#addEffect(ul, effect);
+        }
+    }
+
+    /**
+     * @param {HTMLUListElement} ul -- TODO maybe pass the cause and look the element up...
+     * @param {Effect} effect
+     */
+    #addEffect(ul, effect) {
+        //const element = document.createElement("room-effect");
+        const template = querySelector(this, ".room-effects-effect-item-template", HTMLTemplateElement);
+        const fragment = template.content.cloneNode(true);
+        //ul.append(fragment);
+        const addEffectElement = querySelector(ul, ".room-effects-add-effect");
+        addEffectElement.before(fragment);
+        const element = querySelector(ul, "room-effect", EffectElement);
+        element.effect = effect;
+    }
+}
+customElements.define("room-effects", EffectsElement);
+
+/** TODO. */
+class CauseElement extends HTMLElement {
+    get cause() {
+        return {type: "Foo"};
+    }
+
+    set cause(value) {
+        this.textContent = value.type;
+    }
+}
+customElements.define("room-cause", CauseElement);
+
+class EffectElement extends HTMLElement {
+    get effect() {
+        return {type: "Foo", blueprint_id: "bar"};
+    }
+
+    set effect(value) {
+        this.textContent = value.type;
+    }
+}
+customElements.define("room-effect", EffectElement);
+
+//class EffectsListElement extends HTMLElement {
+//}
+//customElements.define("room-effects-list", EffectsListElement);
+
+// EffectsItemElement
+// EffectsList (merge with top)
+// CauseElement
+// EffectElement
+
 /** Dialog window. */
 class DialogElement extends WindowElement {
     #h2 = querySelector(this, "h2");
@@ -433,6 +522,9 @@ class GameElement extends HTMLElement {
      * @type {BlueprintElement}
      */
     blueprintWindow = querySelector(this, "room-blueprint", BlueprintElement);
+
+    /** TODO */
+    effectsWindow = querySelector(this, "room-effects", EffectsElement);
 
     /**
      * Dialog window.
@@ -781,6 +873,11 @@ class GameElement extends HTMLElement {
                 "Welcome!", "Hold / Touch to move. Click / Tap to use items."
             );
         })();
+        // XXX
+        //this.effectsWindow.open();
+        //this.effectsWindow.effects = [
+        //    [{type: "UseCause"}, [{type: "TransformEffect", blueprint_id: "foo"}]]
+        //];
     }
 
     /** @param {PlaceTileAction} action */

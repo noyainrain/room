@@ -319,6 +319,59 @@
                     </form>
                 </room-blueprint>
 
+                <room-effects>
+                    <style>
+                        .select {
+                            position: absolute;
+                            background: var(--room-color-background);
+                        }
+
+                        button:not(:focus) + .select {
+                            display: none;
+                        }
+                    </style>
+
+                    <template class="room-effects-item-template">
+                        <dt><room-cause></room-cause></dt>
+                        <dd>
+                            <ul>
+                                <li class="room-effects-add-effect">
+                                    <button>+</button>
+                                    <ul class="select">
+                                        <li tabindex="0">Transform</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </dd>
+                    </template>
+
+                    <template class="room-effects-effect-item-template">
+                        <li><room-effect></room-effect></li>
+                    </template>
+
+                    <header>
+                        <h2>Effects Editor</h2>
+                        <button>Done</button>
+                        <button>
+                            <img class="icon" src="/static/images/back.png" alt="Back" />
+                        </button>
+                    </header>
+                    <dl>
+                        <!--<dt>Use</dt>
+                        <dd>
+                            <ul>
+                                <li>Transform</li>
+                            </ul>
+                        </dd>-->
+                        <dt class="room-effects-add-cause">
+                            <button>+</button>
+                            <ul class="select">
+                                <li tabindex="0">Use</li>
+                            </ul>
+                        </dt>
+                    </dl>
+                </room-effects>
+
                 <room-dialog>
                     <h2></h2>
                     <p></p>
