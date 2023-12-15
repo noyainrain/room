@@ -4,12 +4,13 @@ from asyncio import CancelledError, new_event_loop
 from collections.abc import Callable
 from math import sqrt
 import os
+from pathlib import Path
 from socket import gethostname
 from threading import Thread
 from typing import TypedDict, cast
 from unittest import TestCase
 
-from selenium.webdriver import Firefox, Remote
+from selenium.webdriver import Firefox, FirefoxService, Remote
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.options import ArgOptions
@@ -65,7 +66,12 @@ class UITest(TestCase):
                 })
             self.browser = Remote(command_executor=webdriver_url, options=options)
         else:
-            self.browser = Firefox()
+            # Work around Selenium not finding Firefox installed as snap (see
+            # https://github.com/SeleniumHQ/selenium/issues/13169)
+            path = Path('/snap/bin/geckodriver')
+            self.browser = Firefox(
+                service=FirefoxService(
+                    executable_path=str(path) if path.exists() else None)) # type: ignore[arg-type]
         self.wait = WebDriverWait(self.browser, self.TIMEOUT)
 
     def tearDown(self) -> None:
