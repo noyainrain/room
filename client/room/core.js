@@ -7,10 +7,26 @@
  */
 
 /**
+ * @typedef UseCause
+ * @property {"UseCause"} type
+ */
+
+/**
+ * @typedef TransformTileEffect
+ * @property {"TransformTileEffect"} type
+ * @property {string} blueprint_id
+ */
+
+/** @typedef {UseCause} Cause */
+
+/** @typedef {TransformTileEffect} Effect */
+
+/**
  * @typedef Tile
  * @property {string} id
  * @property {string} image
  * @property {boolean} wall
+ * @property {[Cause, Effect[]][]} effects
  */
 
 /**
@@ -37,11 +53,19 @@
  */
 
 /**
+ * @typedef PlaceTileAction
+ * @property {"PlaceTileAction"} type
+ * @property {string} player_id
+ * @property {number} tile_index
+ * @property {string} blueprint_id
+ */
+
+/**
  * @typedef UseAction
  * @property {"UseAction"} type
  * @property {string} player_id
  * @property {number} tile_index
- * @property {string} item_id
+ * @property {Effect[]} effects
  */
 
 /**
@@ -58,7 +82,7 @@
  * @property {[number, number]} position
  */
 
-/**
- * @typedef {FailedAction | WelcomeAction | UseAction | UpdateBlueprintAction | MovePlayerAction}
- *     Action
- */
+/** @typedef {
+   FailedAction | WelcomeAction | PlaceTileAction | UseAction | UpdateBlueprintAction |
+   MovePlayerAction
+} Action */

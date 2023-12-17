@@ -1,5 +1,13 @@
 """Game logic.
 
+.. data:: AnyCause
+
+   Any possible cause of a tile effect.
+
+.. data:: AnyEffect
+
+   Any possible tile effect.
+
 .. data:: DEFAULT_BLUEPRINTS
 
    Default tile blueprints by ID.
@@ -14,10 +22,10 @@ from datetime import timedelta
 from logging import getLogger
 from os import PathLike
 from pathlib import Path
-from typing import ClassVar, Literal, NoReturn, TypeVar
+from typing import Annotated, ClassVar, Literal, NoReturn, TypeVar, Union
 
-from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field, field_validator,
-                      model_validator)
+from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field, field_serializer,
+                      field_validator, model_validator)
 
 from . import context
 from .util import open_image_data_url, randstr, timer
@@ -110,6 +118,62 @@ class Player(BaseModel): # type: ignore[misc]
             await room.publish(self)
             return self
 
+class Cause(BaseModel): # type: ignore[misc]
+    """Cause of a tile effect.
+
+    .. attribute:: type
+
+       Type of the cause.
+    """
+
+    type: str
+
+    def __hash__(self) -> int:
+        return hash(self.type)
+
+class Effect(BaseModel): # type: ignore[misc]
+    """Tile effect.
+
+    .. attribute:: type
+
+       Type of the effect.
+    """
+
+    type: str
+
+    async def apply(self, tile_index: int) -> None:
+        """Apply the effect to the tile at *tile_index*."""
+        raise NotImplementedError()
+
+class UseCause(Cause): # type: ignore[misc]
+    """Cause of using a tile."""
+
+    type: Literal['UseCause'] = 'UseCause'
+
+class TransformTileEffect(Effect): # type: ignore[misc]
+    """Effect of transforming a tile into another.
+
+    .. attribute:: blueprint_id
+
+       ID of the target form.
+    """
+
+    # Not nested in OnlineRoom to avoid circular dependency
+
+    type: Literal['TransformTileEffect'] = 'TransformTileEffect'
+    blueprint_id: str
+
+    @property
+    def blueprint(self) -> Tile:
+        """Target form."""
+        return context.room.get().blueprints[self.blueprint_id]
+
+    async def apply(self, tile_index: int) -> None:
+        context.room.get().tile_ids[tile_index] = self.blueprint_id
+
+AnyCause = Annotated[Union[UseCause], Field(discriminator='type')]
+AnyEffect = Annotated[Union[TransformTileEffect], Field(discriminator='type')]
+
 class Tile(BaseModel): # type: ignore[misc]
     """Room tile.
 
@@ -125,16 +189,32 @@ class Tile(BaseModel): # type: ignore[misc]
 
        Indicates if the tile is impassable.
 
+    .. attribute:: effects
+
+       Tile effects by cause.
+
     .. attribute:: SIZE
 
        Tile width and height in px.
     """
+
+    _EffectsItemModel: ClassVar[TypeAdapter[tuple[AnyCause, list[AnyEffect]]]] = (
+        TypeAdapter(tuple[AnyCause, list[AnyEffect]])) # type: ignore[arg-type]
 
     SIZE: ClassVar[int] = 8
 
     id: str
     image: str
     wall: bool
+    effects: dict[AnyCause, list[AnyEffect]]
+
+    @model_validator(mode='before')
+    @classmethod
+    def _parse(cls, data: dict[str, object]) -> dict[str, object]:
+        # Update effects (0.2)
+        if 'effects' not in data:
+            data['effects'] = []
+        return data
 
     @field_validator('image')
     @classmethod
@@ -143,6 +223,35 @@ class Tile(BaseModel): # type: ignore[misc]
             if not obj.width == obj.height == cls.SIZE:
                 raise ValueError(f'Bad image size {obj.width} x {obj.height} px')
         return image
+
+    @field_validator('effects', mode='before')
+    @classmethod
+    def _parse_effects(cls, effects: object) -> object:
+        if isinstance(effects, list):
+            return dict(cls._EffectsItemModel.validate_python(item) for item in effects)
+        return effects
+
+    @field_validator('effects')
+    @classmethod
+    def _check_effects(cls,
+                       effects: dict[AnyCause, list[AnyEffect]]) -> dict[AnyCause, list[AnyEffect]]:
+        for cause, values in effects.items():
+            if len(values) != len(set(type(effect) for effect in values)):
+                raise ValueError(f'Duplicate effects for {cause.type}')
+        return effects
+
+    @field_serializer('effects')
+    @classmethod
+    def _dump_effects(cls, effects: dict[AnyCause, list[AnyEffect]]) -> object:
+        return list(effects.items())
+
+    async def cause(self, cause: AnyCause, tile_index: int) -> list[AnyEffect]:
+        """Apply the effects of a *cause* to the tile at *tile_index*."""
+        # Note that if there is a crash applying an effect, subsequent effects will not be applied
+        effects = self.effects.get(cause) or []
+        for effect in effects:
+            await effect.apply(tile_index)
+        return effects
 
 class OfflineRoom(BaseModel): # type: ignore[misc]
     """Room file.
@@ -166,29 +275,37 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
     .. attribute:: SIZE
 
        Room width and height.
+
+    .. attribute:: WIDTH
+
+       Room width.
+
+    .. attribute:: HEIGHT
+
+       Room height.
     """
 
     SIZE: ClassVar[int] = 8
+    WIDTH: ClassVar[int] = SIZE
+    HEIGHT: ClassVar[int] = SIZE
 
     id: str
     tile_ids: list[str]
     blueprints: dict[str, Tile]
-    version: Literal['0.1']
+    version: Literal['0.2']
 
     @model_validator(mode='before')
     @classmethod
     def _check(cls, data: dict[str, object]) -> dict[str, object]:
-        # Update to version 0.1
-        if 'version' not in data:
-            data['version'] = '0.1'
+        # Update version
+        if data.get('version') in {None, '0.1'}:
+            data['version'] = '0.2'
         return data
 
     @property
     def tiles(self) -> list[Tile]:
         """Grid of room tiles, serialized in row direction."""
         return [self.blueprints[tile_id] for tile_id in self.tile_ids]
-
-_OfflineRoomModel = TypeAdapter(OfflineRoom)
 
 class OnlineRoom(OfflineRoom): # type: ignore[misc]
     """Creative space.
@@ -230,6 +347,38 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
 
         room: OnlineRoom
 
+    class PlaceTileAction(Action): # type: ignore[misc]
+        """Action of placing a tile.
+
+        .. attribute:: tile_index
+
+           Index of the target tile.
+
+        .. attribute:: blueprint_id
+
+           ID of the blueprint to place.
+        """
+
+        tile_index: int
+        blueprint_id: str
+
+        @property
+        def tile(self) -> Tile:
+            """Target tile."""
+            return context.room.get().tiles[self.tile_index]
+
+        @property
+        def blueprint(self) -> Tile:
+            """Blueprint to place."""
+            return context.room.get().blueprints[self.blueprint_id]
+
+        async def perform(self) -> OnlineRoom.PlaceTileAction:
+            room = context.room.get()
+            # Use property to check blueprint ID
+            room.tile_ids[self.tile_index] = self.blueprint.id
+            await room.publish(self)
+            return self
+
     class UseAction(Action): # type: ignore[misc]
         """Action of using a tile.
 
@@ -237,23 +386,24 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
 
            Index of the used tile.
 
-        .. attribute:: item_id
+        .. attribute:: effects
 
-           ID of the used item.
+           Caused tile effects.
         """
 
         tile_index: int
-        item_id: str
+        effects: list[AnyEffect]
+
+        @property
+        def tile(self) -> Tile:
+            """Target tile."""
+            return context.room.get().tiles[self.tile_index]
 
         async def perform(self) -> OnlineRoom.UseAction:
-            room = context.room.get()
-            if not 0 <= self.tile_index < room.SIZE * room.SIZE:
-                raise ValueError(f'Out-of-range tile_index {self.tile_index}')
-            if self.item_id not in room.blueprints:
-                raise ValueError(f'No blueprints item {self.item_id}')
-            room.tile_ids[self.tile_index] = self.item_id
-            await room.publish(self)
-            return self
+            effects = await self.tile.cause(UseCause(), self.tile_index)
+            action = self.model_copy(update={'effects': effects}) # type: ignore[misc]
+            await context.room.get().publish(action)
+            return action
 
     class UpdateBlueprintAction(Action): # type: ignore[misc]
         """Action of updating a tile blueprint.
@@ -269,96 +419,148 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
 
         async def perform(self) -> OnlineRoom.UpdateBlueprintAction:
             room = context.room.get()
+            for effects in self.blueprint.effects.values():
+                for effect in effects:
+                    if isinstance(effect, TransformTileEffect):
+                        # pylint: disable=pointless-statement
+                        # Check blueprint ID
+                        effect.blueprint
             if self.blueprint.id:
-                if self.blueprint.id not in room.blueprints:
-                    raise ValueError(f'No blueprints item {self.blueprint.id}')
+                # pylint: disable=pointless-statement
+                # Check blueprint ID
+                room.blueprints[self.blueprint.id]
                 action = self
             else:
                 blueprint = self.blueprint.model_copy(update={'id': randstr()}) # type: ignore[misc]
                 action = self.model_copy(update={'blueprint': blueprint}) # type: ignore[misc]
-
             room.blueprints[action.blueprint.id] = action.blueprint
             await room.publish(action)
             return action
 
 DEFAULT_BLUEPRINTS = {
     'void': Tile(
-        id='',
+        id='void',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKElEQVQYV2NkYGD4'
             'D8Q4ASNIQWhoKMPq1atRFMHEwAoImkAHBRQ5EgCbrhQB2kRr+QAAAABJRU5ErkJggg==',
-        wall=False),
+        wall=False,
+        effects={}
+    ),
     'grass': Tile(
-        id='',
+        id='grass',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAOElEQVQYV2NkWMXw'
             'nwEPYAQpCA0NZVi9ejVWZRgK0BWDFSBrJagA3R64Ceg6YXycCmAmYbgB3QoAnmIiUcgpwTgAAAAASUVORK5CYI'
             'I=',
-        wall=False
+        wall=False,
+        effects={}
     ),
     'floor': Tile(
-        id='',
+        id='floor',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAFElEQVQYV2NctWrV'
             'fwY8gHFkKAAApMMX8a16WAwAAAAASUVORK5CYII=',
-        wall=False
-    ),
-    'wall-left': Tile(
-        id='',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANUlEQVQYV2MMDQ39'
-            'z4AHMIIUhDKsxqkErIBoE1YzhALhaiCE0CCAYgVBBTCrcJqAzS0EHQkARNYe+TqxIDUAAAAASUVORK5CYII=',
-        wall=True
+        wall=False,
+        effects={}
     ),
     'wall-horizontal': Tile(
-        id='',
+        id='wall-horizontal',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAALElEQVQYV2MMDQ39'
             'z4AHMK4KZcCvgGgTVjOEAuFqIITQMAC3gmgF6O6l3JEA6qkZ+Y/de7cAAAAASUVORK5CYII=',
-        wall=True
+        wall=True,
+        effects={}
     ),
-    'wall-right': Tile(
-        id='',
+    'wall-horizontal-left': Tile(
+        id='wall-horizontal-left',
+        image=
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANUlEQVQYV2MMDQ39'
+            'z4AHMIIUhDKsxqkErIBoE1YzhALhaiCE0CCAYgVBBTCrcJqAzS0EHQkARNYe+TqxIDUAAAAASUVORK5CYII=',
+        wall=True,
+        effects={}
+    ),
+    'wall-horizontal-right': Tile(
+        id='wall-horizontal-right',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAMklEQVQYV2MMDQ39'
             'z4AHMK4KZcCpYDVDKAMjSSaAdIQyrAZCBI1iBdEKYG4Gu4FiRwIA43Ue+WpSWc4AAAAASUVORK5CYII=',
-        wall=True
+        wall=True,
+        effects={}
     ),
     'wall-vertical': Tile(
-        id='',
+        id='wall-vertical',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAG0lEQVQYV2MMDQ39'
             'H8qwmgEbWM0QysA4MhQAAD2TH/nrMiedAAAAAElFTkSuQmCC',
-        wall=True
+        wall=True,
+        effects={}
     ),
     'wall-corner-bottom-left': Tile(
-        id='',
+        id='wall-corner-bottom-left',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANklEQVQYV2MMDQ39'
             'H8qwmgEbWM0QysCITwFIE1gBVu1QQQwTQMaCrITRpCuAWYfTBHT3EHQkAAj0IPmuXnNhAAAAAElFTkSuQmCC',
-        wall=True
+        wall=True,
+        effects={}
     ),
     'wall-corner-bottom-right': Tile(
-        id='',
+        id='wall-corner-bottom-right',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPElEQVQYV2MMDQ39'
             'H8qwmgEbWM0QysC4KpThP1ZZoCBYAcgEXApA4mATQCpB1sBomAa4FUQrQLeKOo4EAB+iIPk9A4o5AAAAAElFTk'
             'SuQmCC',
-        wall=True
+        wall=True,
+        effects={}
     ),
     'wall-corner-top-left': Tile(
-        id='',
+        id='wall-corner-top-left',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAIUlEQVQYV2MMDQ39'
             'z4AHMIIUhDKsxqkEr4LVDKEMQ0IBAIgQHPlqSMNBAAAAAElFTkSuQmCC',
-        wall=True
+        wall=True,
+        effects={}
     ),
     'wall-corner-top-right': Tile(
-        id='',
+        id='wall-corner-top-right',
         image=
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAJUlEQVQYV2MMDQ39'
             'z4AHMK4KZcCpYDVDKAMjyIRQhtVYzRgyCgBxZhz5QKrMXgAAAABJRU5ErkJggg==',
-        wall=True
+        wall=True,
+        effects={}
+    ),
+    'wall-door-closed': Tile(
+        id='wall-door-closed',
+        image=
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKUlEQVQYV2MMDQ39'
+            'z4AHMK4KZcCvgHITCFqBTcFqhlCws0MZVjNQ7kgAqm0R+QmF/X4AAAAASUVORK5CYII=',
+        wall=True,
+        effects={UseCause(): [TransformTileEffect(blueprint_id='wall-door-open')]}
+    ),
+    'wall-door-open': Tile(
+        id='wall-door-open',
+        image=
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKUlEQVQYV2MMDQ39'
+            'zwAEQBpEYQDGVaEM/1czhOJWQLkJBK2gXAEhRwIAATAc8UKSQEIAAAAASUVORK5CYII=',
+        wall=False,
+        effects={UseCause(): [TransformTileEffect(blueprint_id='wall-door-closed')]}
+    ),
+    'wall-lamp-off': Tile(
+        id='wall-lamp-off',
+        image=
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQklEQVQYV41PWwoA'
+            'MAiyQ3rJPORWwQaDvYR+zNSMZMMF5sRd8O0gEO4OSTWEKnhGJBVuRW4FtQhRYlwvDqdH7FWyA4jCHvmIXOL4AA'
+            'AAAElFTkSuQmCC',
+        wall=True,
+        effects={UseCause(): [TransformTileEffect(blueprint_id='wall-lamp-on')]}
+    ),
+    'wall-lamp-on': Tile(
+        id='wall-lamp-on',
+        image=
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQ0lEQVQYV42OQRIA'
+            'IAgC6ZH4SH1khY2HLhknZlyQQXLioeHEG/hq4K4xA9zPr/JhgXzRAkoVJK8mpaVrpCCpjgl0IxdRtCX5PJx3Mg'
+            'AAAABJRU5ErkJggg==',
+        wall=True,
+        effects={UseCause(): [TransformTileEffect(blueprint_id='wall-lamp-off')]}
     )
 }
 
@@ -374,6 +576,8 @@ class Game:
        Path to data directory.
     """
 
+    _OfflineRoomModel: ClassVar[TypeAdapter[OfflineRoom]] = TypeAdapter(OfflineRoom)
+
     _SAVE_INTERVAL: ClassVar[timedelta] = timedelta(minutes=5)
 
     def __init__(self, *, data_path: PathLike[str] | str = 'data') -> None:
@@ -383,15 +587,11 @@ class Game:
     def create_room(self) -> OnlineRoom:
         """Create a new room."""
         blueprints = {
-            blueprint.id:
-                blueprint
-                for blueprint in (
-                    blueprint.model_copy(update={'id': randstr()}) # type: ignore[misc]
-                    for blueprint in DEFAULT_BLUEPRINTS.values())
+            blueprint.id: blueprint.model_copy() for blueprint in DEFAULT_BLUEPRINTS.values()
         }
-        void = next(iter(blueprints.values()))
-        room = OnlineRoom(id=randstr(), tile_ids=[void.id] * (OnlineRoom.SIZE ** 2),
-                          blueprints=blueprints, version='0.1')
+        room = OnlineRoom(
+            id=randstr(), tile_ids=['void'] * (OfflineRoom.WIDTH * OfflineRoom.HEIGHT),
+            blueprints=blueprints, version='0.2')
         self.rooms[room.id] = room
         return room
 
@@ -414,7 +614,7 @@ class Game:
                 with timer() as t:
                     for room in self.rooms.values():
                         path = self.data_path / f'{room.id}.json'
-                        path.write_bytes(_OfflineRoomModel.dump_json(room))
+                        path.write_bytes(self._OfflineRoomModel.dump_json(room))
                 logger.info('Saved %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
             except OSError as e:
                 logger.error('Failed to write to data directory (%s)', e)

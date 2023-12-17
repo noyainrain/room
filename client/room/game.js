@@ -3,6 +3,8 @@
 import "./core.js";
 import {Vector, querySelector} from "./util.js";
 
+const VERSION = "0.1.0";
+
 /**
  * Foreground window.
  *
@@ -129,6 +131,7 @@ class InventoryEvent extends Event {
 class CreditsElement extends WindowElement {
     constructor() {
         super();
+        querySelector(this, "h2 span").textContent = VERSION;
         querySelector(this, "button").addEventListener("click", () => this.close());
     }
 }
@@ -267,7 +270,12 @@ class BlueprintElement extends WindowElement {
                 game.perform({
                     type: "UpdateBlueprintAction",
                     player_id: game.player.id,
-                    blueprint: {id: this.#blueprint?.id ?? "", image, wall: this.#wallInput.checked}
+                    blueprint: {
+                        id: this.#blueprint?.id ?? "",
+                        image,
+                        wall: this.#wallInput.checked,
+                        effects: this.#blueprint?.effects ?? []
+                    }
                 });
             }
             this.close();
@@ -378,15 +386,17 @@ customElements.define("room-entity", EntityElement);
  */
 class GameElement extends HTMLElement {
     static #ROOM_SIZE = 8;
+    static #ROOM_WIDTH = this.#ROOM_SIZE;
+    static #ROOM_HEIGHT = this.#ROOM_SIZE;
     // In px
     static #TILE_SIZE = 8;
     static #PLAYER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII=";
     // In px / s
-    static #PLAYER_SPEED = GameElement.#ROOM_SIZE / 2 * GameElement.#TILE_SIZE;
+    static #PLAYER_SPEED = GameElement.#ROOM_HEIGHT / 2 * GameElement.#TILE_SIZE;
+    // Two tiles horizontally, one vertically
+    static #PLAYER_REACH = Math.sqrt(5);
     // In px
     static #MOVE_DELTA = 1;
-    // In px
-    static #USE_RADIUS = 2 * GameElement.#TILE_SIZE;
     // In s
     static #TAP_TIMEOUT = 1 / 5;
     // In s
@@ -446,8 +456,8 @@ class GameElement extends HTMLElement {
 
     #tilesElement = querySelector(this, ".room-game-tiles");
     #tileTemplate = querySelector(this, ".room-game-tile-template", HTMLTemplateElement);
-    /** @type {?HTMLDivElement} */
-    #focusedTileElement = null;
+    /** @type {Set<HTMLDivElement>} */
+    #reachableTileElements = new Set();
     /** @type {Map<string, EntityElement>} */
     #playerElements = new Map();
     /** @type {?EntityElement} */
@@ -478,6 +488,7 @@ class GameElement extends HTMLElement {
         equipmentElement.addEventListener("click", () => this.inventoryWindow.toggle());
         this.inventoryWindow.addEventListener("select", event => {
             this.#item = /** @type {InventoryEvent} */ (event).item;
+            this.classList.toggle("room-game-equipped", Boolean(this.#item));
             this.#itemElement.image = this.#item?.image ?? null;
             querySelector(equipmentElement, ".tile", HTMLImageElement).src =
                 this.#item?.image ?? "";
@@ -486,6 +497,10 @@ class GameElement extends HTMLElement {
         this.addEventListener(
             "WelcomeAction",
             event => this.#join(/** @type {ActionEvent<WelcomeAction>} */ (event).action)
+        );
+        this.addEventListener(
+            "PlaceTileAction",
+            event => this.#placeTile(/** @type {ActionEvent<PlaceTileAction>} */ (event).action)
         );
         this.addEventListener(
             "UseAction",
@@ -545,14 +560,27 @@ class GameElement extends HTMLElement {
                 this.#moveTarget = getSceneCoordinates(event);
             }, GameElement.#TAP_TIMEOUT * 1000);
         });
-        scene.addEventListener("pointerup", () => {
-            if (!this.#moveTarget && this.#focusedTileElement && this.#item && this.player) {
-                this.perform({
-                    type: "UseAction",
-                    player_id: this.player.id,
-                    tile_index: parseInt(this.#focusedTileElement.dataset.index ?? ""),
-                    item_id: this.#item.id
-                });
+        scene.addEventListener("pointerup", event => {
+            if (!this.#moveTarget) {
+                const element = this.#getTileElement(getSceneCoordinates(event));
+                const index = parseInt(element?.dataset.index ?? "");
+                if (element?.classList.contains("room-game-tile-reachable") && this.player) {
+                    if (this.#item) {
+                        this.perform({
+                            type: "PlaceTileAction",
+                            player_id: this.player.id,
+                            tile_index: index,
+                            blueprint_id: this.#item.id
+                        });
+                    } else {
+                        this.perform({
+                            type: "UseAction",
+                            player_id: this.player.id,
+                            tile_index: index,
+                            effects: []
+                        });
+                    }
+                }
             }
         });
         // When the pointer is down, detect its release outside of the scene
@@ -620,22 +648,64 @@ class GameElement extends HTMLElement {
     }
 
     /**
-     * @param {DOMPoint} point
+     * @param {number | DOMPoint} index
      * @returns {?HTMLDivElement}
      */
-    #getTileElement(point) {
-        const size = GameElement.#ROOM_SIZE * GameElement.#TILE_SIZE;
-        if (!(point.x >= 0 && point.x < size && point.y >= 0 && point.y < size)) {
-            return null;
+    #getTileElement(index) {
+        if (index instanceof DOMPoint) {
+            if (
+                !(
+                    index.x >= 0 && index.x < GameElement.#ROOM_WIDTH * GameElement.#TILE_SIZE &&
+                    index.y >= 0 && index.y < GameElement.#ROOM_HEIGHT * GameElement.#TILE_SIZE
+                )
+            ) {
+                return null;
+            }
+            return this.#getTileElement(
+                Math.trunc(index.x / GameElement.#TILE_SIZE) +
+                Math.trunc(index.y / GameElement.#TILE_SIZE) * GameElement.#ROOM_WIDTH
+            );
         }
-        const div = this.#tilesElement.children[
-            Math.trunc(point.x / GameElement.#TILE_SIZE) +
-            Math.trunc(point.y / GameElement.#TILE_SIZE) * GameElement.#ROOM_SIZE
-        ];
-        if (!(div instanceof HTMLDivElement)) {
+        const div = this.#tilesElement.children[index] ?? null;
+        if (div && !(div instanceof HTMLDivElement)) {
             throw new Error("Assertion failed");
         }
         return div;
+    }
+
+    /**
+     * @param {HTMLDivElement} tile
+     * @param {number} radius
+     * @returns {Set<HTMLDivElement>}
+     */
+    #findTileElementsAround(tile, radius) {
+        //   w     C: Center of area
+        // H---V   V: Vertical offset
+        //  \  |   H: Horizontal offset
+        // r \ | h r: Radius of area
+        //    \|   h: Height
+        //     C   w: Width of area at height
+        //
+        // h^2 + w^2 = r^2
+        // w = sqrt(r^2 - h^2)
+        const index = parseInt(tile.dataset.index ?? "");
+        const center = new DOMPoint(
+            index % GameElement.#ROOM_WIDTH, Math.trunc(index / GameElement.#ROOM_WIDTH)
+        );
+
+        const tiles = new Set();
+        const top = Math.max(Math.ceil(center.y - radius), 0);
+        const bottom = Math.min(center.y + radius, GameElement.#ROOM_HEIGHT - 1);
+        for (let y = top; y <= bottom; y++) {
+            const height = Math.abs(y - center.y);
+            const width = Math.sqrt(radius ** 2 - height ** 2);
+            const left = Math.max(Math.ceil(center.x - width), 0);
+            const right = Math.min(center.x + width, GameElement.#ROOM_WIDTH - 1);
+            for (let x = left; x <= right; x++) {
+                tiles.add(this.#getTileElement(y * GameElement.#ROOM_WIDTH + x));
+            }
+        }
+        return tiles;
     }
 
     /**
@@ -713,15 +783,33 @@ class GameElement extends HTMLElement {
         })();
     }
 
-    /** @param {UseAction} action */
-    #use(action) {
-        const tile = this.#blueprints.get(action.item_id);
-        const img = this.#tilesElement.children[action.tile_index]?.firstElementChild;
-        if (!(tile && img instanceof HTMLImageElement)) {
+    /** @param {PlaceTileAction} action */
+    #placeTile(action) {
+        const tile = this.#blueprints.get(action.blueprint_id);
+        if (!tile) {
             throw new Error("Assertion failed");
         }
         this.#tiles[action.tile_index] = tile;
-        img.src = tile.image;
+        this.#updateTileElement(action.tile_index);
+    }
+
+    /** @param {UseAction} action */
+    #use(action) {
+        for (const effect of action.effects) {
+            switch (effect.type) {
+            case "TransformTileEffect":
+                // eslint-disable-next-line no-case-declarations
+                const tile = this.#blueprints.get(effect.blueprint_id);
+                if (!tile) {
+                    throw new Error("Assertion failed");
+                }
+                this.#tiles[action.tile_index] = tile;
+                this.#updateTileElement(action.tile_index);
+                break;
+            default:
+                console.warn("Unknown effect %s", effect.type);
+            }
+        }
     }
 
     /** @param {UpdateBlueprintAction} action */
@@ -807,20 +895,26 @@ class GameElement extends HTMLElement {
             }
         }
 
-        // Focus tile
-        let focusedTileElement = null;
-        if (this.#pointer && this.#item && this.#playerElement) {
-            const distance = Vector.abs(
-                Vector.subtract(this.#pointer, this.#playerElement.position)
-            );
-            if (distance <= GameElement.#USE_RADIUS) {
-                focusedTileElement = this.#getTileElement(this.#pointer);
+        // Find reachable tiles
+        if (this.#playerElement) {
+            const tile = this.#getTileElement(this.#playerElement.position);
+            if (!tile) {
+                throw new Error("Assertion failed");
             }
-        }
-        if (this.#focusedTileElement !== focusedTileElement) {
-            this.#focusedTileElement?.classList.remove("room-game-tile-focused");
-            this.#focusedTileElement = focusedTileElement;
-            this.#focusedTileElement?.classList.add("room-game-tile-focused");
+            const reachableTileElements = this.#findTileElementsAround(
+                tile, GameElement.#PLAYER_REACH
+            );
+            for (const tile of this.#reachableTileElements) {
+                if (!reachableTileElements.has(tile)) {
+                    tile.classList.remove("room-game-tile-reachable");
+                }
+            }
+            for (const tile of reachableTileElements) {
+                if (!this.#reachableTileElements.has(tile)) {
+                    tile.classList.add("room-game-tile-reachable");
+                }
+            }
+            this.#reachableTileElements = reachableTileElements;
         }
 
         requestAnimationFrame(() => this.#tick());
@@ -829,14 +923,29 @@ class GameElement extends HTMLElement {
     #renderTiles() {
         this.#tilesElement.textContent = "";
         for (let i = 0; i < this.#tiles.length; i++) {
-            const div = querySelector(
+            const tile = querySelector(
                 /** @type {DocumentFragment} */ (this.#tileTemplate.content.cloneNode(true)), "div",
                 HTMLDivElement
             );
-            div.dataset.index = i.toString();
-            querySelector(div, "img", HTMLImageElement).src = this.#tiles[i]?.image ?? "";
-            this.#tilesElement.append(div);
+            tile.dataset.index = i.toString();
+            this.#tilesElement.append(tile);
+            this.#updateTileElement(i);
         }
+    }
+
+    /** @param {number} index */
+    #updateTileElement(index) {
+        const tile = this.#tiles[index];
+        const div = this.#getTileElement(index);
+        div?.classList.toggle(
+            "room-game-tile-usable",
+            Boolean(tile?.effects.find(([cause]) => cause.type === "UseCause"))
+        );
+        const img = div?.firstElementChild;
+        if (!(img instanceof HTMLImageElement)) {
+            throw new Error("Assertion failed");
+        }
+        img.src = tile?.image ?? "";
     }
 
     /**

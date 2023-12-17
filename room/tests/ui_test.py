@@ -19,7 +19,7 @@ from selenium.webdriver.support.expected_conditions import (presence_of_element_
                                                             text_to_be_present_in_element_attribute)
 from selenium.webdriver.support.wait import WebDriverWait
 
-from room.game import OnlineRoom, Tile
+from room.game import OnlineRoom, Tile, DEFAULT_BLUEPRINTS
 from room.__main__ import main
 
 class Location(TypedDict):
@@ -82,8 +82,7 @@ class UITest(TestCase):
     def test(self) -> None:
         # View room
         self.browser.get(f'http://{gethostname()}:8080')
-        tile = self.wait.until(
-            presence_of_element_located((By.CSS_SELECTOR, '.room-game-tiles div')))
+        tile = self.wait.until(presence_of_element_located((By.CSS_SELECTOR, '.room-game-tile')))
 
         # Finish intro
         close_button = self.browser.find_element(By.CSS_SELECTOR, 'room-dialog button')
@@ -98,16 +97,17 @@ class UITest(TestCase):
         # View inventory
         equipment = self.browser.find_element(By.CSS_SELECTOR, '.room-game-equipment')
         equipment.click()
-        grass = self.browser.find_element(By.CSS_SELECTOR,
-                                          'room-inventory ul > :nth-child(3) .tile')
-        grass_image = cast(str, grass.get_property('src'))
-        self.assertTrue(grass.is_displayed())
+        index = next(i for i, blueprint_id in enumerate(DEFAULT_BLUEPRINTS)
+                     if blueprint_id == 'wall-door-closed')
+        item = self.browser.find_element(By.CSS_SELECTOR,
+                                         f'room-inventory ul > :nth-child({index + 2}) .tile')
+        self.assertTrue(item.is_displayed())
 
         # Select item
-        grass.click()
+        item.click()
         self.assertEqual(
             equipment.find_element(By.CSS_SELECTOR, 'img').get_property('src'), # type: ignore[misc]
-            grass_image)
+            DEFAULT_BLUEPRINTS['wall-door-closed'].image)
 
         # View workshop
         equipment.click()
@@ -128,8 +128,18 @@ class UITest(TestCase):
             element_at(player, location, delta=scale))
         actions.reset_actions()
 
-        # Use
+        # Place tile
         actions.click(tile).perform()
         self.wait.until(
             text_to_be_present_in_element_attribute(
-                (By.CSS_SELECTOR, '.room-game-tiles img'), 'src', grass_image))
+                (By.CSS_SELECTOR, '.room-game-tile img'), 'src',
+                DEFAULT_BLUEPRINTS['wall-door-closed'].image))
+
+        # Use
+        equipment.click()
+        self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-no-item').click()
+        actions.click(tile).perform()
+        self.wait.until(
+            text_to_be_present_in_element_attribute(
+                (By.CSS_SELECTOR, '.room-game-tile img'), 'src',
+                DEFAULT_BLUEPRINTS['wall-door-open'].image))

@@ -62,9 +62,6 @@ export default [
             "wrap-iife": "error",
             "wrap-regex": "error",
             "yield-star-spacing": "error",
-            // Handled by TypeScript
-            "no-undef": "off",
-            "no-extra-parens": "off",
             // Line breaks help structure the thought process
             "array-element-newline": "off",
             "function-call-argument-newline": "off",
@@ -73,7 +70,12 @@ export default [
             "multiline-ternary": "off",
             "newline-per-chained-call": "error",
             "object-property-newline": "off",
-            "padding-line-between-statements": "off"
+            "padding-line-between-statements": "off",
+            // Handled by TypeScript
+            "no-undef": "off",
+            "no-extra-parens": "off",
+            // Additional best practices
+            "no-warning-comments": "error"
         }
     }
 ];

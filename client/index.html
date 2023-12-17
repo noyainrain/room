@@ -63,16 +63,13 @@
                     position: relative;
                 }
 
-                .room-game-tile::after {
+                .room-game-tile-usable.room-game-tile-reachable::after,
+                .room-game-equipped .room-game-tile-reachable::after {
                     position: absolute;
                     inset: 0;
                     content: "";
                     background: white;
-                    opacity: 0.5;
-                }
-
-                .room-game-tile:not(.room-game-tile-focused)::after {
-                    display: none;
+                    opacity: 20%;
                 }
 
                 .room-game-tile img {
@@ -173,7 +170,10 @@
                     </style>
 
                     <header>
-                        <h2><img class="icon" src="/static/images/icon.png" alt="" /> Credits</h2>
+                        <h2>
+                            <img class="icon" src="/static/images/icon.png" alt="" /> Room
+                            <span></span>
+                        </h2>
                         <button>
                             <img class="icon" src="/static/images/close.png" alt="Close" />
                         </button>
@@ -185,7 +185,7 @@
                         class="block" href="https://ldjam.com/events/ludum-dare/54/room"
                         target="_blank"
                     >
-                        Built in 48 hours for Ludum Dare 54
+                        Originally created for Ludum Dare 54
                     </a>
                     <a class="block" href="https://discord.gg/Jey5jCJy2T" target="_blank">
                         Community

@@ -24,7 +24,8 @@ from .game import FailedAction, Game, OnlineRoom, Player
 from .util import WSMessage, cancel, timer
 
 _NonblankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-_AnyAction = Union[OnlineRoom.UseAction, OnlineRoom.UpdateBlueprintAction, Player.MovePlayerAction]
+_AnyAction = Union[OnlineRoom.PlaceTileAction, OnlineRoom.UseAction,
+                   OnlineRoom.UpdateBlueprintAction, Player.MovePlayerAction]
 
 _CLOSE_CODE_UNKNOWN_ROOM = 4004
 
@@ -80,6 +81,10 @@ async def _rooms(request: Request) -> WebSocketResponse:
                     error = f'Bad message ({e})'
                 except ValueError as e:
                     error = str(e)
+                except IndexError:
+                    error = 'Unknown index'
+                except LookupError as e:
+                    error = f"Unknown key {e.args[0]}" # type: ignore[misc]
                 except Exception:
                     logger.exception('Unhandled error')
                     error = 'Unhandled server error'
