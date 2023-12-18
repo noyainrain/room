@@ -282,6 +282,11 @@ class BlueprintElement extends WindowElement {
             console.log("Updated blueprint", image);
         });
         querySelector(this, ".room-blueprint-back").addEventListener("click", () => this.close());
+        querySelector(this, ".room-blueprint-effects").addEventListener("click", () => {
+            const {effectsWindow} = querySelector(document, "room-game", GameElement);
+            effectsWindow.effects = this.#blueprint?.effects ?? [];
+            effectsWindow.open();
+        });
     }
 
     /**
