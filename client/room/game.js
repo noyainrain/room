@@ -3,6 +3,8 @@
 import "./core.js";
 import {Vector, querySelector} from "./util.js";
 
+const VERSION = "jam-archive";
+
 /**
  * Foreground window.
  *
@@ -129,6 +131,7 @@ class InventoryEvent extends Event {
 class CreditsElement extends WindowElement {
     constructor() {
         super();
+        querySelector(this, "h2 span").textContent = VERSION;
         querySelector(this, "button").addEventListener("click", () => this.close());
     }
 }

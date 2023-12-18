@@ -2,7 +2,7 @@
 
 Sandbox game about being creative in a limited space.
 
-You can play it at [room.feini.chat](https://room.feini.chat/).
+You can play it at [jam.room.feini.chat](https://jam.room.feini.chat/).
 
 ## System Requirements
 
