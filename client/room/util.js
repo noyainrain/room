@@ -1,5 +1,68 @@
 /** Various utilities. */
 
+// because we do not get particle as return value, it must be possible to set dynamic css properties
+// for start
+// spawnParticle(container, start, end, startProperties, endProperties)
+// spawnParticle(body, "foo", "foo-end", {"background": b, "translate": t1}, {"translate": t2, "opacity": o});
+
+// alt: start/end Object<string, string> | string
+// spawnParticle(container, start, end)
+// spawnParticle(body, "foo", {"class": "foo-end", "opacity": 1});
+// ^ also cool: if no end given, we can assume animation :)
+
+/**
+ * TODO.
+ * @param {Element} element - TODO
+ * @param {Object<string, string> | string} start - TODO
+ * @param {Object<string, string> | string} [end] - TODO
+ */
+export async function emitParticle(element, start, end = {}) {
+    if (typeof start === "string") {
+        start = {class: start};
+    }
+    if (typeof end === "string") {
+        end = {class: end};
+    }
+
+    const particle = document.createElement("div");
+    particle.style.position = "absolute";
+    particle.style.inset = "0 auto auto 0";
+    if (start.class) {
+        particle.className = start.class;
+    }
+    Object.assign(particle.style, start);
+    //for (const [key, value] of Object.entries(start)) {
+    //    if (key === "class") {
+    //        particle.className = value;
+    //        continue;
+    //    }
+    //    particle.style.setProperty(key, value);
+    //}
+    element.append(particle);
+    // render particle to apply transition rules, next change will then be transition
+    particle.offsetHeight;
+
+    return /** @type {Promise<void>} */ (
+        new Promise(resolve => {
+            particle.addEventListener("transitionend", () => {
+                particle.remove();
+                resolve();
+            });
+            //particle.classList.add(...end);
+            //for (const [key, [_, to]] of Object.entries(transitions)) {
+            //    particle.style.setProperty(key, to);
+            //}
+            if (typeof end !== "object") {
+                throw new Error("Assertion failed");
+            }
+            if (end.class) {
+                particle.className = end.class;
+            }
+            Object.assign(particle.style, end);
+        })
+    );
+}
+
 /** @param {Error} e */
 async function reportError(e) {
     try {

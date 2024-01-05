@@ -167,3 +167,8 @@ label:hover {
     translate: calc(var(--room-entity-x) - 50%) calc(var(--room-entity-y) - 50%);
     background: var(--room-entity-image);
 }
+
+.room-particle {
+    position: absolute;
+    inset: 0 auto auto 0;
+}

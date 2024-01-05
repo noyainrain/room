@@ -64,13 +64,43 @@
                     position: relative;
                 }
 
-                .room-game-tile-usable.room-game-tile-reachable::after,
-                .room-game-equipped .room-game-tile-reachable::after {
+                .room-game-tile-usable.room-game-tile-reachable::before,
+                .room-game-equipped .room-game-tile-reachable::before {
                     position: absolute;
                     inset: 0;
                     content: "";
                     background: white;
                     opacity: 20%;
+                }
+
+                .room-game-tile-particle {
+                    translate: 0 -2px;
+                    width: 8px;
+                    height: 8px;
+                    opacity: 0;
+                    transition: translate ease-in 0.25s, opacity linear 0.25s;
+                }
+
+                .room-game-tile-particle-end {
+                    translate: 0 0;
+                    opacity: 1;
+                }
+
+                .room-blendable {
+                    position: relative;
+                }
+
+                .room-blendable::after {
+                    position: absolute;
+                    inset: 0;
+                    content: "";
+                    background: white;
+                    opacity: 0;
+                    transition: opacity linear 0.125s;
+                }
+
+                .room-blend::after {
+                    opacity: 1;
                 }
 
                 .room-game-tile img {
@@ -85,6 +115,20 @@
 
                 .room-game-scene:not(.room-game-scene-has-pointer) .room-game-item {
                     display: none;
+                }
+
+                .room-game-player {
+                    animation: 1s ease-in-out infinite alternate hover;
+                }
+
+                @keyframes hover {
+                    from {
+                        transform: translateY(0px);
+                    }
+
+                    to {
+                        transform: translateY(-1px);
+                    }
                 }
 
                 .room-game-hud {
@@ -119,7 +163,7 @@
             </style>
 
             <template class="room-game-tile-template">
-                <div class="room-game-tile"><img /></div>
+                <div class="room-game-tile room-blendable"><img /></div>
             </template>
 
             <div class="room-game-scene">

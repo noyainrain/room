@@ -626,7 +626,7 @@ class Game:
 
         while True:
             # pylint: disable=broad-exception-caught
-            await sleep(self._SAVE_INTERVAL.total_seconds())
+            await sleep(30) # self._SAVE_INTERVAL.total_seconds())
             try:
                 with timer() as t:
                     for room in self.rooms.values():

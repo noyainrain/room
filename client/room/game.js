@@ -1,7 +1,7 @@
 /** Room UI. */
 
 import "./core.js";
-import {Vector, querySelector} from "./util.js";
+import {Vector, emitParticle, querySelector} from "./util.js";
 
 const VERSION = "0.1.0";
 
@@ -797,13 +797,35 @@ class GameElement extends HTMLElement {
         })();
     }
 
+    /**
+     * @param {Element} element
+     * @param {function} update
+     */
+    #blend(element, update) {
+        element.addEventListener("transitionend", () => {
+            element.classList.remove("room-blend");
+            update();
+        }, {once: true});
+        element.classList.add("room-blend");
+    }
+
     /** @param {PlaceTileAction} action */
-    #placeTile(action) {
+    async #placeTile(action) {
         const tile = this.#blueprints.get(action.blueprint_id);
         if (!tile) {
             throw new Error("Assertion failed");
         }
+
         this.#tiles[action.tile_index] = tile;
+
+        const cell = this.#getTileElement(action.tile_index);
+        if (!cell) {
+            throw new Error("Assertion failed");
+        }
+        await emitParticle(
+            cell, {class: "room-game-tile-particle", background: `url(${tile.image})`},
+            "room-game-tile-particle room-game-tile-particle-end"
+        );
         this.#updateTileElement(action.tile_index);
     }
 
@@ -838,7 +860,17 @@ class GameElement extends HTMLElement {
         });
         this.inventoryWindow.items = Array.from(this.#blueprints.values());
         this.workshopWindow.blueprints = this.#blueprints;
-        this.#renderTiles();
+
+        // this.#renderTiles();
+        for (let i = 0; i < this.#tiles.length; i++) {
+            if (this.#tiles[i]?.id === action.blueprint.id) {
+                const cell = this.#getTileElement(i);
+                if (!cell) {
+                    throw new Error("Assertion failed");
+                }
+                this.#blend(cell, () => this.#updateTileElement(i));
+            }
+        }
     }
 
     /** @param {MovePlayerAction} action */
