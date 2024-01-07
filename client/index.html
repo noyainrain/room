@@ -73,40 +73,23 @@
                     opacity: 20%;
                 }
 
+                .room-game-tile img {
+                    display: block;
+                    /* Disable dragging and context menu */
+                    pointer-events: none;
+                }
+
                 .room-game-tile-particle {
-                    translate: 0 -2px;
                     width: 8px;
                     height: 8px;
+                    translate: 0 -2px;
                     opacity: 0;
-                    transition: translate ease-in 0.25s, opacity linear 0.25s;
+                    transition: translate 0.25s ease-in, opacity 0.25s linear;
                 }
 
                 .room-game-tile-particle-end {
                     translate: 0 0;
                     opacity: 1;
-                }
-
-                .room-blendable {
-                    position: relative;
-                }
-
-                .room-blendable::after {
-                    position: absolute;
-                    inset: 0;
-                    content: "";
-                    background: white;
-                    opacity: 0;
-                    transition: opacity linear 0.125s;
-                }
-
-                .room-blend::after {
-                    opacity: 1;
-                }
-
-                .room-game-tile img {
-                    display: block;
-                    /* Disable dragging and context menu */
-                    pointer-events: none;
                 }
 
                 .room-game-item {

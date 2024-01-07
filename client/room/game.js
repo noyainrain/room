@@ -812,16 +812,11 @@ class GameElement extends HTMLElement {
     /** @param {PlaceTileAction} action */
     async #placeTile(action) {
         const tile = this.#blueprints.get(action.blueprint_id);
-        if (!tile) {
-            throw new Error("Assertion failed");
-        }
-
-        this.#tiles[action.tile_index] = tile;
-
         const cell = this.#getTileElement(action.tile_index);
-        if (!cell) {
+        if (!(tile && cell)) {
             throw new Error("Assertion failed");
         }
+        this.#tiles[action.tile_index] = tile;
         await emitParticle(
             cell, {class: "room-game-tile-particle", background: `url(${tile.image})`},
             "room-game-tile-particle room-game-tile-particle-end"
@@ -861,9 +856,8 @@ class GameElement extends HTMLElement {
         this.inventoryWindow.items = Array.from(this.#blueprints.values());
         this.workshopWindow.blueprints = this.#blueprints;
 
-        // this.#renderTiles();
-        for (let i = 0; i < this.#tiles.length; i++) {
-            if (this.#tiles[i]?.id === action.blueprint.id) {
+        for (const [i, tile] of this.#tiles.entries()) {
+            if (tile.id === action.blueprint.id) {
                 const cell = this.#getTileElement(i);
                 if (!cell) {
                     throw new Error("Assertion failed");

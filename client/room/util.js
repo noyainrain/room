@@ -60,12 +60,13 @@ export function querySelector(element, selectors, type = /** @type {new() => T} 
 /**
  * Emit a particle and apply a CSS transition.
  *
- * After the transition, the particle is removed.
+ * By default, the particle is absolutely positioned at the origin. After the transition, the
+ * particle is removed.
  *
  * @param {Element} element - Element to emit the particle at
  * @param {ParticleStyle} start - Initial style of the particle. Should define a `transition`.
  * @param {ParticleStyle} end - Final style of the particle. Should change a property named in
- *                              `transition`.
+ * `transition`.
  */
 export async function emitParticle(element, start, end) {
     if (typeof start === "string") {
@@ -78,39 +79,34 @@ export async function emitParticle(element, start, end) {
     const particle = document.createElement("div");
     particle.style.position = "absolute";
     particle.style.inset = "0 auto auto 0";
-    if (start.class) {
+    if ("class" in start) {
         particle.className = start.class;
     }
-    // TODO test with custom --var
-    Object.assign(particle.style, start);
-    //for (const [key, value] of Object.entries(start)) {
-    //    if (key === "class") {
-    //        particle.className = value;
-    //        continue;
-    //    }
-    //    particle.style.setProperty(key, value);
-    //}
+    for (const [key, value] of Object.entries(start)) {
+        // Unsupported properties (like class) are ignored
+        particle.style.setProperty(key, value);
+    }
     element.append(particle);
-    // render particle to apply transition rules, next change will then be transition
+    // Trigger reflow, so the next style update will start a transition
     particle.offsetHeight;
 
     return /** @type {Promise<void>} */ (
         new Promise(resolve => {
             particle.addEventListener("transitionend", () => {
-                particle.remove();
-                resolve();
+                if (!particle.getAnimations().length) {
+                    particle.remove();
+                    resolve();
+                }
             });
-            //particle.classList.add(...end);
-            //for (const [key, [_, to]] of Object.entries(transitions)) {
-            //    particle.style.setProperty(key, to);
-            //}
             if (typeof end !== "object") {
                 throw new Error("Assertion failed");
             }
-            if (end.class) {
+            if ("class" in end) {
                 particle.className = end.class;
             }
-            Object.assign(particle.style, end);
+            for (const [key, value] of Object.entries(end)) {
+                particle.style.setProperty(key, value);
+            }
         })
     );
 }

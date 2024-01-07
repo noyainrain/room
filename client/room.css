@@ -172,3 +172,20 @@ label:hover {
     position: absolute;
     inset: 0 auto auto 0;
 }
+
+.room-blendable {
+    position: relative;
+}
+
+.room-blendable::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background: white;
+    opacity: 0;
+    transition: opacity linear 0.125s;
+}
+
+.room-blend::after {
+    opacity: 1;
+}
