@@ -96,6 +96,23 @@ label:hover {
     background: var(--room-color-text);
 }
 
+.blendable {
+    position: relative;
+}
+
+.blendable::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background: white;
+    opacity: 0;
+    transition: opacity linear 0.125s;
+}
+
+.blended::after {
+    opacity: 1;
+}
+
 .icon {
     height: 1em;
     vertical-align: calc(-1em / 8);

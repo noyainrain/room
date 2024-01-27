@@ -38,6 +38,69 @@ export function querySelector(element, selectors, type = /** @type {new() => T} 
     return child;
 }
 
+/**
+ * CSS properties of a particle.
+ *
+ * The special property `class` corresponds to the `class` attribute of the particle.
+ *
+ * Alternatively, may be a {@link string} directly specifying the `class` attribute.
+ * @typedef {Object<string, string> | string} ParticleStyle
+ */
+
+/**
+ * Emit a particle and apply a CSS transition.
+ *
+ * By default, the particle is absolutely positioned at the origin. After the transition, the
+ * particle is removed.
+ *
+ * @param {Element} element - Element to emit the particle at
+ * @param {ParticleStyle} start - Initial style of the particle. Should define a `transition`.
+ * @param {ParticleStyle} end - Final style of the particle. Should change a property named in
+ * `transition`.
+ */
+export async function emitParticle(element, start, end) {
+    if (typeof start === "string") {
+        start = {class: start};
+    }
+    if (typeof end === "string") {
+        end = {class: end};
+    }
+
+    const particle = document.createElement("div");
+    particle.style.position = "absolute";
+    particle.style.inset = "0 auto auto 0";
+    if ("class" in start) {
+        particle.className = start.class;
+    }
+    for (const [key, value] of Object.entries(start)) {
+        // Unsupported properties (like class) are ignored
+        particle.style.setProperty(key, value);
+    }
+    element.append(particle);
+    // Trigger reflow, so the next style update will start a transition
+    particle.offsetHeight;
+
+    return /** @type {Promise<void>} */ (
+        new Promise(resolve => {
+            particle.addEventListener("transitionend", () => {
+                if (!particle.getAnimations().length) {
+                    particle.remove();
+                    resolve();
+                }
+            });
+            if (typeof end !== "object") {
+                throw new Error("Assertion failed");
+            }
+            if ("class" in end) {
+                particle.className = end.class;
+            }
+            for (const [key, value] of Object.entries(end)) {
+                particle.style.setProperty(key, value);
+            }
+        })
+    );
+}
+
 /** Vector operations. */
 export class Vector {
     /**

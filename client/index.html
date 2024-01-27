@@ -59,12 +59,8 @@
                     grid: repeat(var(--room-game-room-size), 1fr) / repeat(var(--room-game-room-size), 1fr);
                 }
 
-                .room-game-tile {
-                    position: relative;
-                }
-
-                .room-game-tile-usable.room-game-tile-reachable::after,
-                .room-game-equipped .room-game-tile-reachable::after {
+                .room-game-tile-usable.room-game-tile-reachable::before,
+                .room-game-equipped .room-game-tile-reachable::before {
                     position: absolute;
                     inset: 0;
                     content: "";
@@ -78,12 +74,41 @@
                     pointer-events: none;
                 }
 
+                .room-game-tile-particle {
+                    width: 8px;
+                    height: 8px;
+                    translate: 0 -2px;
+                    opacity: 0;
+                    transition: translate 0.25s ease-in, opacity 0.25s linear;
+                }
+
+                .room-game-tile-particle-end {
+                    translate: 0 0;
+                    opacity: 1;
+                }
+
                 .room-game-item {
                     opacity: 0.5;
                 }
 
                 .room-game-scene:not(.room-game-scene-has-pointer) .room-game-item {
                     display: none;
+                }
+
+                .room-game-player {
+                    --room-game-player-hover-delay: 0;
+                    animation: 1s ease-in-out calc(-2s * var(--room-game-player-hover-delay))
+                        infinite alternate hover;
+                }
+
+                @keyframes hover {
+                    from {
+                        transform: translateY(0);
+                    }
+
+                    to {
+                        transform: translateY(-1px);
+                    }
                 }
 
                 .room-game-hud {
@@ -112,7 +137,7 @@
             </style>
 
             <template class="room-game-tile-template">
-                <div class="room-game-tile"><img /></div>
+                <div class="room-game-tile blendable"><img /></div>
             </template>
 
             <div class="room-game-scene">

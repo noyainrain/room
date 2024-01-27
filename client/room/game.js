@@ -1,9 +1,9 @@
 /** Room UI. */
 
 import "./core.js";
-import {Vector, querySelector} from "./util.js";
+import {Vector, emitParticle, querySelector} from "./util.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
 /**
  * Foreground window.
@@ -784,12 +784,17 @@ class GameElement extends HTMLElement {
     }
 
     /** @param {PlaceTileAction} action */
-    #placeTile(action) {
+    async #placeTile(action) {
         const tile = this.#blueprints.get(action.blueprint_id);
-        if (!tile) {
+        const cell = this.#getTileElement(action.tile_index);
+        if (!(tile && cell)) {
             throw new Error("Assertion failed");
         }
         this.#tiles[action.tile_index] = tile;
+        await emitParticle(
+            cell, {class: "room-game-tile-particle", background: `url(${tile.image})`},
+            "room-game-tile-particle room-game-tile-particle-end"
+        );
         this.#updateTileElement(action.tile_index);
     }
 
@@ -815,16 +820,19 @@ class GameElement extends HTMLElement {
     /** @param {UpdateBlueprintAction} action */
     #updateBlueprint(action) {
         this.#blueprints.set(action.blueprint.id, action.blueprint);
-        this.#tiles = this.#tiles.map(tile => {
-            const updated = this.#blueprints.get(tile.id);
-            if (!updated) {
-                throw new Error("Assertion failed");
-            }
-            return updated;
-        });
         this.inventoryWindow.items = Array.from(this.#blueprints.values());
         this.workshopWindow.blueprints = this.#blueprints;
-        this.#renderTiles();
+
+        for (const [i, tile] of this.#tiles.entries()) {
+            if (tile.id === action.blueprint.id) {
+                this.#tiles[i] = action.blueprint;
+                const cell = this.#getTileElement(i);
+                if (!cell) {
+                    throw new Error("Assertion failed");
+                }
+                this.#blend(cell, () => this.#updateTileElement(i));
+            }
+        }
     }
 
     /** @param {MovePlayerAction} action */
@@ -955,11 +963,26 @@ class GameElement extends HTMLElement {
     #spawnPlayer(player) {
         const playerElement = new EntityElement();
         playerElement.classList.add("room-game-player");
+        playerElement.style.setProperty("--room-game-player-hover-delay", Math.random().toString());
         playerElement.position = new DOMPoint(...player.position);
         playerElement.image = GameElement.#PLAYER_IMAGE;
         this.#tilesElement.after(playerElement);
         this.#playerElements.set(player.id, playerElement);
         return playerElement;
+    }
+
+    /** @callback UpdateBlendCallback */
+
+    /**
+     * @param {Element} element
+     * @param {UpdateBlendCallback} update
+     */
+    #blend(element, update) {
+        element.addEventListener("transitionend", () => {
+            element.classList.remove("blended");
+            update();
+        }, {once: true});
+        element.classList.add("blended");
     }
 }
 customElements.define("room-game", GameElement);
