@@ -48,10 +48,11 @@
                 }
 
                 .room-game-scene .room-game-content {
-                    width: calc(var(--room-game-room-size) * 8px);
+                    /*width: calc(var(--room-game-room-size) * 8px);
                     height: calc(var(--room-game-room-size) * 8px);
                     transform: scale(var(--room-game-scale));
                     transform-origin: left top;
+                    zoom: var(--room-game-scale);*/
                 }
 
                 .room-game-tiles {
@@ -72,12 +73,14 @@
                     display: block;
                     /* Disable dragging and context menu */
                     pointer-events: none;
+                    width: calc(8px * var(--room-game-scale));
+                    height: calc(8px * var(--room-game-scale));
                 }
 
                 .room-game-tile-particle {
-                    width: 8px;
-                    height: 8px;
-                    translate: 0 -2px;
+                    width: calc(8px * var(--room-game-scale));
+                    height: calc(8px * var(--room-game-scale));
+                    translate: 0 calc(-2px * var(--room-game-scale));
                     opacity: 0;
                     transition: translate 0.25s ease-in, opacity 0.25s linear;
                 }
@@ -107,7 +110,7 @@
                     }
 
                     to {
-                        transform: translateY(-1px);
+                        transform: translateY(calc(-1px * var(--room-game-scale)));
                     }
                 }
 

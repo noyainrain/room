@@ -792,7 +792,7 @@ class GameElement extends HTMLElement {
         }
         this.#tiles[action.tile_index] = tile;
         await emitParticle(
-            cell, {class: "room-game-tile-particle", background: `url(${tile.image})`},
+            cell, {class: "room-game-tile-particle", background: `url(${tile.image}) center / 100%`},
             "room-game-tile-particle room-game-tile-particle-end"
         );
         this.#updateTileElement(action.tile_index);

@@ -11,6 +11,8 @@ html {
     overflow: hidden;
     overflow-wrap: break-word;
     font: medium / 1.5 sans-serif;
+    /*image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;*/
     image-rendering: pixelated;
     color: var(--room-color-text);
     background: black;
@@ -179,8 +181,8 @@ label:hover {
     display: block;
     position: absolute;
     inset: 0 auto auto 0;
-    width: 8px;
-    height: 8px;
-    translate: calc(var(--room-entity-x) - 50%) calc(var(--room-entity-y) - 50%);
-    background: var(--room-entity-image);
+    width: calc(8px * var(--room-game-scale));
+    height: calc(8px * var(--room-game-scale));
+    translate: calc(var(--room-entity-x) * var(--room-game-scale) - 50%) calc(var(--room-entity-y) * var(--room-game-scale) - 50%);
+    background: var(--room-entity-image) center / 100%;
 }
