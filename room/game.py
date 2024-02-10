@@ -206,7 +206,7 @@ class Tile(BaseModel): # type: ignore[misc]
     id: str
     image: str
     wall: bool
-    effects: dict[AnyCause, list[AnyEffect]]
+    effects: dict[AnyCause, Annotated[list[AnyEffect], Field(min_length=1)]]
 
     @model_validator(mode='before')
     @classmethod
@@ -229,15 +229,6 @@ class Tile(BaseModel): # type: ignore[misc]
     def _parse_effects(cls, effects: object) -> object:
         if isinstance(effects, list):
             return dict(cls._EffectsItemModel.validate_python(item) for item in effects)
-        return effects
-
-    @field_validator('effects')
-    @classmethod
-    def _check_effects(cls,
-                       effects: dict[AnyCause, list[AnyEffect]]) -> dict[AnyCause, list[AnyEffect]]:
-        for cause, values in effects.items():
-            if len(values) != len(set(type(effect) for effect in values)):
-                raise ValueError(f'Duplicate effects for {cause.type}')
         return effects
 
     @field_serializer('effects')

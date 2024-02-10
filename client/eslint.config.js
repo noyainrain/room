@@ -68,7 +68,7 @@ export default [
             "lines-around-comment": "off",
             "lines-between-class-members": "off",
             "multiline-ternary": "off",
-            "newline-per-chained-call": "error",
+            "newline-per-chained-call": "off",
             "object-property-newline": "off",
             "padding-line-between-statements": "off",
             // Handled by TypeScript

@@ -21,6 +21,30 @@ async function reportError(e) {
 addEventListener("error", event => reportError(event.error));
 addEventListener("unhandledrejection", event => reportError(event.reason));
 
+/** Thrown when an assertion fails. */
+export class AssertionError extends Error {
+    /**
+     * @param {string} [message]
+     * @param {ErrorOptions} [options]
+     */
+    constructor(message = "Assertion failed", options = {}) {
+        super(message, options);
+    }
+}
+
+/**
+ * Split an array into chunks.
+ * @template T
+ * @param {T[]} array - Array to split
+ * @param {number} size - Chunk size
+ * @returns {T[][]}
+ */
+export function chunk(array, size) {
+    return new Array(Math.ceil(array.length / size)).fill(null).map(
+        (_, i) => array.slice(i * size, (i + 1) * size)
+    );
+}
+
 /**
  * Query the first child that matches the given selectors in a type-safe way.
  *

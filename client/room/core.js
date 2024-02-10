@@ -1,88 +1,47 @@
 /** Core concepts. */
 
-/**
- * @typedef Player
- * @property {string} id
- * @property {[number, number]} position
- */
+import {querySelector} from "./util.js";
 
 /**
- * @typedef UseCause
- * @property {"UseCause"} type
+ * Foreground window.
+ *
+ * @fires {Event#close}
  */
+export class WindowElement extends HTMLElement {
+    constructor() {
+        super();
+        this.classList.add("room-window");
+    }
+
+    /** Open the window. */
+    async open() {
+        this.classList.add("room-window-open");
+        return new Promise(resolve => this.addEventListener("close", resolve, {once: true}));
+    }
+
+    /** Close the window. */
+    close() {
+        this.classList.remove("room-window-open");
+        this.dispatchEvent(new Event("close"));
+    }
+
+    /** Open or close the window depending on its state. */
+    toggle() {
+        this.classList.contains("room-window-open") ? this.close() : this.open();
+    }
+}
+customElements.define("room-window", WindowElement);
 
 /**
- * @typedef TransformTileEffect
- * @property {"TransformTileEffect"} type
- * @property {string} blueprint_id
+ * Render a tile list item.
+ * @param {Tile} blueprint - Relevant tile blueprint
+ * @returns HTMLLIElement
  */
-
-/** @typedef {UseCause} Cause */
-
-/** @typedef {TransformTileEffect} Effect */
-
-/**
- * @typedef Tile
- * @property {string} id
- * @property {string} image
- * @property {boolean} wall
- * @property {[Cause, Effect[]][]} effects
- */
-
-/**
- * @typedef Room
- * @property {string} id
- * @property {string[]} tile_ids
- * @property {Object<string, Tile>} blueprints
- * @property {string} version
- * @property {Object<string, Player>} players
- */
-
-/**
- * @typedef FailedAction
- * @property {"FailedAction"} type
- * @property {string} player_id
- * @property {string} message
- */
-
-/**
- * @typedef WelcomeAction
- * @property {"WelcomeAction"} type
- * @property {string} player_id
- * @property {Room} room
- */
-
-/**
- * @typedef PlaceTileAction
- * @property {"PlaceTileAction"} type
- * @property {string} player_id
- * @property {number} tile_index
- * @property {string} blueprint_id
- */
-
-/**
- * @typedef UseAction
- * @property {"UseAction"} type
- * @property {string} player_id
- * @property {number} tile_index
- * @property {Effect[]} effects
- */
-
-/**
- * @typedef UpdateBlueprintAction
- * @property {"UpdateBlueprintAction"} type
- * @property {string} player_id
- * @property {Tile} blueprint
- */
-
-/**
- * @typedef MovePlayerAction
- * @property {"MovePlayerAction"} type
- * @property {string} player_id
- * @property {[number, number]} position
- */
-
-/** @typedef {
-   FailedAction | WelcomeAction | PlaceTileAction | UseAction | UpdateBlueprintAction |
-   MovePlayerAction
-} Action */
+export function renderTileItem(blueprint) {
+    const li = querySelector(
+        document.importNode(renderTileItem.template.content, true), "li", HTMLLIElement
+    );
+    querySelector(li, ".tile", HTMLImageElement).src = blueprint.image;
+    return li;
+}
+renderTileItem.template = querySelector(document, "#tile-item-template", HTMLTemplateElement);

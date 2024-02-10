@@ -167,10 +167,6 @@
                         }
                     </style>
 
-                    <template class="room-inventory-item-template">
-                        <li class="room-inventory-item" tabindex="0"><img class="tile" /></li>
-                    </template>
-
                     <header>
                         <h2>Inventory</h2>
                         <button class="room-inventory-close">
@@ -234,10 +230,6 @@
                         }
                     </style>
 
-                    <template class="room-workshop-blueprint-template">
-                        <li class="room-workshop-blueprint" tabindex="0"><img class="tile" /></li>
-                    </template>
-
                     <header>
                         <h2>Workshop</h2>
                         <button class="room-workshop-close">
@@ -254,12 +246,8 @@
                     </ul>
                 </room-workshop>
 
-                <room-blueprint>
+                <room-blueprint class="room-window-maximized">
                     <style>
-                        room-blueprint.room-window {
-                            bottom: var(--room-size-gap);
-                        }
-
                         room-blueprint form {
                             display: flex;
                             height: 100%;
@@ -289,6 +277,10 @@
                             --room-blueprint-color-value: "";
                         }
 
+                        .room-blueprint-color:not(:first-child) {
+                            border: unset;
+                        }
+
                         .room-blueprint-color:focus,
                         .room-blueprint-color:hover {
                             color: unset;
@@ -315,7 +307,21 @@
                             border: var(--room-size-border) solid;
                         }
 
-                        .room-blueprint-wall  {
+                        room-blueprint footer {
+                            display: flex;
+                            border-top: var(--room-size-border) solid;
+                        }
+
+                        room-blueprint footer > * {
+                            flex: 1 1 0;
+                        }
+
+                        room-blueprint footer > :not(:first-child) {
+                            border-top: unset;
+                            border-left: var(--room-size-border) solid var(--room-color-text);
+                        }
+
+                        .room-blueprint-wall {
                             padding: var(--room-size-gap);
                         }
                     </style>
@@ -338,11 +344,151 @@
                         <canvas width="8" height="8"></canvas>
                         <img class="room-blueprint-source" />
                         <fieldset></fieldset>
-                        <label class="room-blueprint-wall">
-                            <input type="checkbox" name="wall"></input> Wall
-                        </label>
+                        <footer>
+                            <label class="room-blueprint-wall">
+                                <input type="checkbox" name="wall" /> Wall
+                            </label>
+                            <button type="button" class="room-blueprint-effects">
+                                <img class="icon" src="/static/images/implication.png" alt="" />
+                                <span></span>
+                            </button>
+                        </footer>
                     </form>
                 </room-blueprint>
+
+                <room-blueprint-effects class="room-window-maximized">
+                    <style>
+                        room-blueprint-effects dl {
+                            display: grid;
+                            margin: var(--room-size-gap);
+                            grid: auto / 1fr 1fr;
+                            row-gap: var(--room-size-gap);
+                        }
+
+                        room-blueprint-effects dt {
+                            display: flex;
+                            align-items: start;
+                        }
+
+                        room-blueprint-effects dt::after {
+                            width: 1em;
+                            height: 1.5em;
+                            padding: var(--room-size-gap);
+                            margin-block: var(--room-size-border);
+                            content: "";
+                            background: url("/static/images/implication.png") center / 1em no-repeat;
+                        }
+
+                        room-blueprint-effects dt > :first-child {
+                            flex: auto;
+                        }
+
+                        room-blueprint-effects dd {
+                            margin: unset;
+                        }
+
+                        .room-blueprint-effects-add-cause::after {
+                            visibility: hidden;
+                        }
+
+                        room-blueprint-effects dt.room-blueprint-effects-add-cause > :first-child {
+                            flex: none;
+                            width: auto;
+                        }
+
+                        .room-blueprint-effects-check {
+                            display: none;
+                        }
+                    </style>
+
+                    <template class="room-blueprint-effects-item-template">
+                        <dt></dt>
+                        <dd>
+                            <room-effect-list>
+                                <style>
+                                    room-effect-list {
+                                        display: block;
+                                    }
+
+                                    room-effect-list > ul {
+                                        display: flex;
+                                        padding: unset;
+                                        flex-flow: column;
+                                        gap: var(--room-size-gap);
+                                    }
+
+                                    room-effect-list > ul > li {
+                                        display: block;
+                                    }
+
+                                    .room-effect-list-add-effect {
+                                        align-self: start;
+                                    }
+
+                                    .room-effect-list-check {
+                                        display: none;
+                                    }
+
+                                    .room-effect-list-check + .task {
+                                        padding: unset;
+                                        margin-top: var(--room-size-gap);
+                                    }
+                                </style>
+
+                                <ul>
+                                    <li class="room-effect-list-add-effect contextual">
+                                        <p class="card" tabindex="0">
+                                            <img class="icon" src="/static/images/add.png" alt="" />
+                                            Add Effect
+                                        </p>
+                                        <ul>
+                                            <li
+                                                class="room-effect-list-transform-tile-effect"
+                                                tabindex="0"
+                                            >
+                                                <img
+                                                    class="icon"
+                                                    src="/static/images/transform-tile-effect.png"
+                                                /> Transform
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <input class="room-effect-list-check" />
+                                <small class="task">Add at least one effect</small>
+                            </room-effect-list>
+                        </dd>
+                    </template>
+
+                    <form novalidate="novalidate">
+                        <header>
+                            <h2>Tile Effects Editor</h2>
+                            <button>Done</button>
+                            <button type="button" class="room-blueprint-effects-back">
+                                <img class="icon" src="/static/images/back.png" alt="Back" />
+                            </button>
+                        </header>
+                        <dl>
+                            <dt
+                                class="room-blueprint-effects-add-cause contextual contextual-reversed"
+                            >
+                                <p class="card" tabindex="0">
+                                    <img class="icon" src="/static/images/add.png" alt="" /> Add
+                                    Cause
+                                </p>
+                                <ul>
+                                    <li class="room-blueprint-effects-use-cause" tabindex="0">
+                                        <img
+                                            class="icon" src="/static/images/use-cause.png" alt=""
+                                        /> Use
+                                    </li>
+                                </ul>
+                            </dt>
+                        </dl>
+                        <input class="room-blueprint-effects-check" />
+                        <small class="task">Remove duplicate causes</small>
+                    </form>
+                </room-blueprint-effects>
 
                 <room-dialog>
                     <h2></h2>
@@ -355,5 +501,57 @@
                 </room>
             </div>
         </room-game>
+
+        <template id="tile-item-template">
+            <li tabindex="0"><img class="tile" /></li>
+        </template>
+
+        <template id="room-effect-header-template">
+            <style>
+                @import "/static/room.css";
+
+                :host {
+                    display: block;
+                }
+
+                :host(:not(:last-child)) {
+                    border-bottom: var(--room-size-border) solid;
+                }
+            </style>
+
+            <header>
+                <h3><slot></slot></h3>
+                <button type="button" class="room-effect-header-remove">
+                    <img class="icon" src="/static/images/remove.png" alt="Remove" />
+                </button>
+            </header>
+        </template>
+
+        <template id="room-use-cause-template">
+            <room-effect-header>
+                <img class="icon" src="/static/images/use-cause.png" /> Use
+            </room-effect-header>
+        </template>
+
+        <template id="room-transform-tile-effect-template">
+            <style>
+                room-transform-tile-effect {
+                    display: block;
+                }
+
+                .room-transform-tile-effect-blueprint ul {
+                    display: flex;
+                    flex-flow: wrap;
+                }
+            </style>
+
+            <room-effect-header>
+                <img class="icon" src="/static/images/transform-tile-effect.png" /> Transform
+            </room-effect-header>
+            <div class="room-transform-tile-effect-blueprint contextual">
+                <p tabindex="0"><img class="tile" /></p>
+                <ul></ul>
+            </div>
+        </template>
     </body>
 </html>

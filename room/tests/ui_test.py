@@ -112,8 +112,23 @@ class UITest(TestCase):
         # View workshop
         equipment.click()
         self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-open-workshop').click()
-        self.assertTrue(
-            self.browser.find_element(By.CSS_SELECTOR, '.room-workshop-blueprint').is_displayed())
+        create_blueprint_item = self.browser.find_element(By.CSS_SELECTOR,
+                                                          '.room-workshop-create-blueprint')
+        self.assertTrue(create_blueprint_item.is_displayed())
+
+        # Create blueprint
+        create_blueprint_item.click()
+        effects_button = self.browser.find_element(By.CSS_SELECTOR, '.room-blueprint-effects')
+        effects_button.click()
+        self.browser.find_element(By.CSS_SELECTOR, '.room-blueprint-effects-add-cause p').click()
+        self.browser.find_element(By.CSS_SELECTOR, '.room-blueprint-effects-use-cause').click()
+        self.browser.find_element(By.CSS_SELECTOR, '.room-effect-list-add-effect').click()
+        self.browser.find_element(
+            By.CSS_SELECTOR, '.room-effect-list-transform-tile-effect'
+        ).click()
+        self.browser.find_element(By.CSS_SELECTOR, 'room-blueprint-effects button').click()
+        self.assertEqual(effects_button.text, '1 Effect')
+        self.browser.find_element(By.CSS_SELECTOR, 'room-blueprint button').click()
         self.browser.find_element(By.CSS_SELECTOR, '.room-workshop-close').click()
 
         # Move

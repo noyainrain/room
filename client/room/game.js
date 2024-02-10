@@ -1,39 +1,10 @@
 /** Room UI. */
 
-import "./core.js";
+import {WindowElement, renderTileItem} from "./core.js";
 import {Vector, emitParticle, querySelector} from "./util.js";
+import {BlueprintEffectsElement} from "./workshop.js";
 
-const VERSION = "0.1.1";
-
-/**
- * Foreground window.
- *
- * @fires {Event#close}
- */
-class WindowElement extends HTMLElement {
-    constructor() {
-        super();
-        this.classList.add("room-window");
-    }
-
-    /** Open the window. */
-    async open() {
-        this.classList.add("room-window-open");
-        return new Promise(resolve => this.addEventListener("close", resolve, {once: true}));
-    }
-
-    /** Close the window. */
-    close() {
-        this.classList.remove("room-window-open");
-        this.dispatchEvent(new Event("close"));
-    }
-
-    /** Open or close the window depending on its state. */
-    toggle() {
-        this.classList.contains("room-window-open") ? this.close() : this.open();
-    }
-}
-customElements.define("room-window", WindowElement);
+const VERSION = "0.1.2";
 
 /**
  * Player inventory window.
@@ -46,13 +17,13 @@ class InventoryElement extends WindowElement {
     /** @type {?Room} */
     #room = null;
     #ul = querySelector(this, "ul");
-    #template = querySelector(this, ".room-inventory-item-template", HTMLTemplateElement);
+    #noItem = querySelector(this, ".room-inventory-no-item");
     #a = querySelector(this, "a", HTMLAnchorElement);
 
     constructor() {
         super();
         querySelector(this, ".room-inventory-close").addEventListener("click", () => this.close());
-        querySelector(this, ".room-inventory-no-item").addEventListener("click", () => {
+        this.#noItem.addEventListener("click", () => {
             this.dispatchEvent(new InventoryEvent("select", null));
             this.close();
         });
@@ -77,18 +48,17 @@ class InventoryElement extends WindowElement {
     set items(value) {
         this.#items = value;
 
-        for (const li of this.#ul.querySelectorAll(".room-inventory-item")) {
-            li.remove();
+        for (const li of Array.from(this.#ul.children)) {
+            if (li !== this.#noItem) {
+                li.remove();
+            }
         }
         for (const item of this.#items) {
-            const li = querySelector(
-                /** @type {DocumentFragment} */ (this.#template.content.cloneNode(true)), "li"
-            );
+            const li = renderTileItem(item);
             li.addEventListener("click", () => {
                 this.dispatchEvent(new InventoryEvent("select", item));
                 this.close();
             });
-            querySelector(li, "img", HTMLImageElement).src = item.image;
             this.#ul.append(li);
         }
     }
@@ -142,7 +112,6 @@ class WorkshopElement extends WindowElement {
     /** @type {Map<string, Tile>} */
     #blueprints = new Map();
     #ul = querySelector(this, "ul");
-    #template = querySelector(this, ".room-workshop-blueprint-template", HTMLTemplateElement);
     #createBlueprintItem = querySelector(this, ".room-workshop-create-blueprint");
 
     connectedCallback() {
@@ -165,19 +134,18 @@ class WorkshopElement extends WindowElement {
     set blueprints(value) {
         this.#blueprints = value;
 
-        for (const li of this.#ul.querySelectorAll(".room-workshop-blueprint")) {
-            li.remove();
+        for (const li of Array.from(this.#ul.children)) {
+            if (li !== this.#createBlueprintItem) {
+                li.remove();
+            }
         }
         for (const blueprint of this.#blueprints.values()) {
-            const li = querySelector(
-                /** @type {DocumentFragment} */ (this.#template.content.cloneNode(true)), "li"
-            );
+            const li = renderTileItem(blueprint);
             li.addEventListener("click", () => {
                 const {blueprintWindow} = querySelector(document, "room-game", GameElement);
                 blueprintWindow.blueprint = blueprint;
                 blueprintWindow.open();
             });
-            querySelector(li, "img", HTMLImageElement).src = blueprint.image;
             this.#createBlueprintItem.before(li);
         }
     }
@@ -208,11 +176,14 @@ class BlueprintElement extends WindowElement {
 
     /** @type {?Tile} */
     #blueprint = null;
+    /** @type {[Cause, Effect[]][]} */
+    #effects = [];
     #canvas = querySelector(this, "canvas", HTMLCanvasElement);
     /** @type {CanvasRenderingContext2D} */
     #context;
     #sourceImg = querySelector(this, ".room-blueprint-source", HTMLImageElement);
     #wallInput = querySelector(this, '[name="wall"]', HTMLInputElement);
+    #effectsElement = querySelector(this, ".room-blueprint-effects span");
 
     constructor() {
         super();
@@ -274,7 +245,7 @@ class BlueprintElement extends WindowElement {
                         id: this.#blueprint?.id ?? "",
                         image,
                         wall: this.#wallInput.checked,
-                        effects: this.#blueprint?.effects ?? []
+                        effects: this.#effects
                     }
                 });
             }
@@ -282,6 +253,13 @@ class BlueprintElement extends WindowElement {
             console.log("Updated blueprint", image);
         });
         querySelector(this, ".room-blueprint-back").addEventListener("click", () => this.close());
+        querySelector(this, ".room-blueprint-effects").addEventListener("click", async () => {
+            const game = querySelector(document, "room-game", GameElement);
+            game.blueprintEffectsWindow.effects = this.#effects;
+            await game.blueprintEffectsWindow.open();
+            this.#effects = game.blueprintEffectsWindow.effects;
+            this.#updateEffectsElement();
+        });
     }
 
     /**
@@ -294,6 +272,7 @@ class BlueprintElement extends WindowElement {
 
     set blueprint(value) {
         this.#blueprint = value;
+        this.#effects = value?.effects ?? [];
         if (this.#blueprint) {
             this.#sourceImg.src = this.#blueprint.image;
             this.#context.globalCompositeOperation = "copy";
@@ -304,6 +283,12 @@ class BlueprintElement extends WindowElement {
             this.#context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
             this.#wallInput.checked = false;
         }
+        this.#updateEffectsElement();
+    }
+
+    #updateEffectsElement() {
+        this.#effectsElement.textContent = this.#effects.length === 0 ? "No Effects"
+            : (this.#effects.length === 1 ? "1 Effect" : `${this.#effects.length} Effects`);
     }
 }
 customElements.define("room-blueprint", BlueprintElement);
@@ -384,7 +369,7 @@ customElements.define("room-entity", EntityElement);
  * @fires {ActionEvent#UpdateBlueprintAction}
  * @fires {ActionEvent#MovePlayerAction}
  */
-class GameElement extends HTMLElement {
+export class GameElement extends HTMLElement {
     static #ROOM_SIZE = 8;
     static #ROOM_WIDTH = this.#ROOM_SIZE;
     static #ROOM_HEIGHT = this.#ROOM_SIZE;
@@ -403,6 +388,18 @@ class GameElement extends HTMLElement {
     static #MOVE_INTERVAL = 1 / 8;
     // Popular proxy servers have a default timeout of 60 s
     static #HEARTBEAT = 60 / 2;
+
+    /**
+     * Represented room. `null` before joining.
+     * @type {?Room}
+     */
+    room = null;
+
+    /**
+     * Tile blueprints by ID.
+     * @type {Map<string, Tile>}
+     */
+    blueprints = new Map();
 
     /**
      * Current player. `null` before joining.
@@ -434,16 +431,15 @@ class GameElement extends HTMLElement {
      */
     blueprintWindow = querySelector(this, "room-blueprint", BlueprintElement);
 
+    /** Blueprint effects editor window. */
+    blueprintEffectsWindow = querySelector(this, "room-blueprint-effects", BlueprintEffectsElement);
+
     /**
      * Dialog window.
      * @type {DialogElement}
      */
     dialogWindow = querySelector(this, "room-dialog", DialogElement);
 
-    /** @type {?Room} */
-    #room = null;
-    /** @type {Map<string, Tile>} */
-    #blueprints = new Map();
     /** @type {Tile[]} */
     #tiles = [];
     /** @type {Map<string, Player>} */
@@ -745,21 +741,21 @@ class GameElement extends HTMLElement {
 
     /** @param {WelcomeAction} action */
     #join(action) {
-        this.#room = action.room;
-        this.#blueprints = new Map(Object.entries(this.#room.blueprints));
-        this.#tiles = this.#room.tile_ids.map(id => {
-            const tile = this.#blueprints.get(id);
+        this.room = action.room;
+        this.blueprints = new Map(Object.entries(this.room.blueprints));
+        this.#tiles = this.room.tile_ids.map(id => {
+            const tile = this.blueprints.get(id);
             if (!tile) {
                 throw new Error("Assertion failed");
             }
             return tile;
         });
-        this.#players = new Map(Object.entries(this.#room.players));
+        this.#players = new Map(Object.entries(this.room.players));
         this.player = this.#players.get(action.player_id) ?? null;
 
-        this.inventoryWindow.room = this.#room;
-        this.inventoryWindow.items = Array.from(this.#blueprints.values());
-        this.workshopWindow.blueprints = this.#blueprints;
+        this.inventoryWindow.room = this.room;
+        this.inventoryWindow.items = Array.from(this.blueprints.values());
+        this.workshopWindow.blueprints = this.blueprints;
 
         this.#renderTiles();
         for (const element of this.#playerElements.values()) {
@@ -770,7 +766,7 @@ class GameElement extends HTMLElement {
             this.#spawnPlayer(player);
         }
         this.#playerElement = this.#playerElements.get(action.player_id) ?? null;
-        location.hash = this.#room.id;
+        location.hash = this.room.id;
 
         // Start
         (async () => {
@@ -785,7 +781,7 @@ class GameElement extends HTMLElement {
 
     /** @param {PlaceTileAction} action */
     async #placeTile(action) {
-        const tile = this.#blueprints.get(action.blueprint_id);
+        const tile = this.blueprints.get(action.blueprint_id);
         const cell = this.#getTileElement(action.tile_index);
         if (!(tile && cell)) {
             throw new Error("Assertion failed");
@@ -804,7 +800,7 @@ class GameElement extends HTMLElement {
             switch (effect.type) {
             case "TransformTileEffect":
                 // eslint-disable-next-line no-case-declarations
-                const tile = this.#blueprints.get(effect.blueprint_id);
+                const tile = this.blueprints.get(effect.blueprint_id);
                 if (!tile) {
                     throw new Error("Assertion failed");
                 }
@@ -819,9 +815,9 @@ class GameElement extends HTMLElement {
 
     /** @param {UpdateBlueprintAction} action */
     #updateBlueprint(action) {
-        this.#blueprints.set(action.blueprint.id, action.blueprint);
-        this.inventoryWindow.items = Array.from(this.#blueprints.values());
-        this.workshopWindow.blueprints = this.#blueprints;
+        this.blueprints.set(action.blueprint.id, action.blueprint);
+        this.inventoryWindow.items = Array.from(this.blueprints.values());
+        this.workshopWindow.blueprints = this.blueprints;
 
         for (const [i, tile] of this.#tiles.entries()) {
             if (tile.id === action.blueprint.id) {

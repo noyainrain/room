@@ -5,6 +5,7 @@
 html {
     --room-color-text: white;
     --room-color-background: #2a2a2a;
+    --room-color-task: #ff5;
     --room-size-gap: 0.5rem;
     --room-size-border: 0.25rem;
     height: 100dvh;
@@ -26,6 +27,7 @@ body {
 .block,
 h1,
 h2,
+h3,
 p,
 ul,
 button,
@@ -38,6 +40,7 @@ fieldset {
 .block:empty,
 h1:empty,
 h2:empty,
+h3:empty,
 p:empty,
 ul:empty,
 button:empty,
@@ -46,54 +49,110 @@ fieldset:empty {
 }
 
 h1,
-h2 {
+h2,
+h3 {
     border-bottom: var(--room-size-border) solid;
     font-size: unset;
+    font-weight: unset;
+}
+
+h1,
+h2 {
     font-weight: bold;
 }
 
 button,
-a.block {
-    width: 100%;
-    border: solid var(--room-color-text);
-    border-width: var(--room-size-border) 0;
+a.block,
+label {
+    border: unset;
     font: unset;
     text-align: unset;
     text-decoration: unset;
     color: unset;
     background: unset;
+}
+
+button:not(:first-child),
+a.block:not(:first-child),
+label:not(:first-child) {
+    border-top: var(--room-size-border) solid var(--room-color-text);
+}
+
+button {
+    width: 100%;
+}
+
+button,
+a.block,
+label,
+[tabindex] {
     cursor: pointer;
 }
 
-header + button,
-button + button,
-a.block + button,
-header + a.block,
-button + a.block,
-a.block + a.block {
-    border-top: unset;
+button:focus,
+button:hover,
+a.block:focus,
+a.block:hover,
+label:focus-within,
+label:hover,
+[tabindex]:focus,
+[tabindex]:hover {
+    outline: unset;
+    color: var(--room-color-background);
+    background: var(--room-color-text);
 }
 
-button:last-child,
-a.block:last-child {
-    border-bottom: unset;
+form:invalid button:not([type=button]) {
+    color: var(--room-color-task);
 }
 
 fieldset {
     border: unset;
 }
 
-[tabindex]:focus,
-[tabindex]:hover,
-button:focus,
-button:hover,
-a.block:focus,
-a.block:hover,
-label:focus-within,
-label:hover {
-    outline: unset;
-    color: var(--room-color-background);
-    background: var(--room-color-text);
+small.task {
+    display: block;
+    padding-inline: var(--room-size-gap);
+    color: var(--room-color-task);
+}
+
+input:valid + small.task {
+    display: none;
+}
+
+header {
+    display: flex;
+}
+
+header:not(:last-child) {
+    border-bottom: var(--room-size-border) solid;
+}
+
+header h2,
+header h3 {
+    border: unset;
+    flex: auto;
+}
+
+header button {
+    box-sizing: content-box;
+    width: unset;
+    min-width: 1.5em;
+    text-align: center;
+}
+
+header button:not(:first-child) {
+    border-top: unset;
+    border-left: var(--room-size-border) solid var(--room-color-text);
+}
+
+small {
+    font-size: 0.8125rem;
+}
+
+.card {
+    /* Specify color for button cards */
+    border: var(--room-size-border) solid var(--room-color-text);
 }
 
 .blendable {
@@ -111,6 +170,45 @@ label:hover {
 
 .blended::after {
     opacity: 1;
+}
+
+/**
+ * Contextual: Contextual content for an element.
+ *
+ * Wrapped around a focusable element and its accompanying contextual content. Note that the element
+ * cannot be a button, as buttons do not receive focus on click in some browsers, e.g. Safari (see
+ * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button#clicking_and_focus).
+ */
+
+.contextual {
+    position: relative;
+}
+
+.contextual > :last-child {
+    position: absolute;
+    z-index: 1;
+    border: var(--room-size-border) solid;
+    background: var(--room-color-background);
+    white-space: nowrap;
+}
+
+.contextual:not(:focus-within) > :last-child {
+    height: 0;
+    border: unset;
+    overflow: hidden;
+}
+
+.contextual-reversed > :last-child {
+    bottom: 100%;
+}
+
+.contextual > ul:last-child {
+    padding: unset;
+}
+
+.contextual > ul:last-child > li {
+    display: block;
+    padding: var(--room-size-gap);
 }
 
 .icon {
@@ -154,22 +252,8 @@ label:hover {
     display: none;
 }
 
-.room-window header {
-    display: flex;
-    border-bottom: solid var(--room-color-text);
-}
-
-.room-window header h2 {
-    border: unset;
-    flex: auto;
-}
-
-.room-window header button {
-    box-sizing: content-box;
-    width: unset;
-    min-width: 1.5em;
-    border-width: 0 0 0 var(--room-size-border);
-    text-align: center;
+.room-window-maximized {
+    bottom: var(--room-size-gap);
 }
 
 .room-entity {
