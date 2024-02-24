@@ -4,7 +4,7 @@ import {WindowElement, renderTileItem} from "./core.js";
 import {Vector, emitParticle, querySelector} from "./util.js";
 import {BlueprintEffectsElement} from "./workshop.js";
 
-const VERSION = "0.1.2";
+const VERSION = "0.2.0";
 
 /**
  * Player inventory window.
@@ -370,9 +370,8 @@ customElements.define("room-entity", EntityElement);
  * @fires {ActionEvent#MovePlayerAction}
  */
 export class GameElement extends HTMLElement {
-    static #ROOM_SIZE = 8;
-    static #ROOM_WIDTH = this.#ROOM_SIZE;
-    static #ROOM_HEIGHT = this.#ROOM_SIZE;
+    static #ROOM_WIDTH = 16;
+    static #ROOM_HEIGHT = 9;
     // In px
     static #TILE_SIZE = 8;
     static #PLAYER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII=";
@@ -480,6 +479,30 @@ export class GameElement extends HTMLElement {
         addEventListener("error", showError);
         addEventListener("unhandledrejection", showError);
 
+        this.classList.toggle(
+            "room-game-can-fullscreen",
+            "fullscreenEnabled" in document && document.fullscreenEnabled
+        );
+        querySelector(this, ".room-game-fullscreen button").addEventListener("click", async () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                this.requestFullscreen();
+                if ("lock" in screen.orientation) {
+                    try {
+                        // @ts-ignore
+                        await screen.orientation.lock("landscape");
+                    } catch (e) {
+                        if (e instanceof DOMException && e.name === "NotSupportedError") {
+                            // Ignore
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+            }
+        });
+
         const equipmentElement = querySelector(this, ".room-game-equipment");
         equipmentElement.addEventListener("click", () => this.inventoryWindow.toggle());
         this.inventoryWindow.addEventListener("select", event => {
@@ -518,15 +541,32 @@ export class GameElement extends HTMLElement {
     }
 
     connectedCallback() {
+        let sceneBounds = new DOMRect();
+
+        const sceneContent = querySelector(this, ".room-game-scene .room-game-content");
         const scale = () => {
-            const size = GameElement.#ROOM_SIZE * GameElement.#TILE_SIZE;
-            this.#scale = Math.min(
-                Math.floor(this.offsetWidth / size), Math.floor(this.offsetHeight / size)
-            );
+            this.#scale = Math.floor(
+                Math.min(
+                    this.offsetWidth * devicePixelRatio /
+                        (GameElement.#ROOM_WIDTH * GameElement.#TILE_SIZE),
+                    this.offsetHeight * devicePixelRatio /
+                        (GameElement.#ROOM_HEIGHT * GameElement.#TILE_SIZE)
+                )
+            ) / devicePixelRatio;
             this.style.setProperty("--room-game-scale", this.#scale.toString());
+            sceneBounds = sceneContent.getBoundingClientRect();
         };
         addEventListener("resize", scale);
         scale();
+
+        const updateOrientation = () => {
+            this.classList.toggle(
+                "room-game-portrait",
+                ["portrait-primary", "portrait-secondary"].includes(screen.orientation.type)
+            );
+        };
+        screen.orientation.addEventListener("change", updateOrientation);
+        updateOrientation();
 
         // Work around Safari recognizing touch-action only on clickable elements (see
         // https://bugs.webkit.org/show_bug.cgi?id=149854)
@@ -537,7 +577,10 @@ export class GameElement extends HTMLElement {
          * @returns {DOMPoint}
          */
         const getSceneCoordinates =
-            event => new DOMPoint(event.clientX / this.#scale, event.clientY / this.#scale);
+            event => new DOMPoint(
+                (event.clientX - sceneBounds.left) / this.#scale,
+                (event.clientY - sceneBounds.top) / this.#scale
+            );
         const scene = querySelector(this, ".room-game-scene", HTMLDivElement);
 
         scene.addEventListener("pointerdown", event => {

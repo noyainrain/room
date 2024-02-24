@@ -84,5 +84,5 @@ class GameTest(TestCase):
     def test_create_room(self) -> None:
         room = self.game.create_room()
         self.assertIn(room.id, self.game.rooms)
-        self.assertEqual(len(room.tiles), OnlineRoom.SIZE ** 2)
+        self.assertEqual(set(room.tile_ids), {'void'}) # type: ignore[misc]
         self.assertEqual(len(room.blueprints), len(DEFAULT_BLUEPRINTS))

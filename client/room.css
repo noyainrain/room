@@ -8,6 +8,8 @@ html {
     --room-color-task: #ff5;
     --room-size-gap: 0.5rem;
     --room-size-border: 0.25rem;
+    --room-size-content: 70ch;
+    --room-shadow: var(--room-size-border) var(--room-size-border) #00000080;
     height: 100dvh;
     overflow: hidden;
     overflow-wrap: break-word;
@@ -102,6 +104,17 @@ label:hover,
     background: var(--room-color-text);
 }
 
+button.inline {
+    display: unset;
+    width: unset;
+    padding: unset;
+    text-decoration: underline;
+}
+
+button.inline .icon {
+    margin-right: var(--room-size-border);
+}
+
 form:invalid button:not([type=button]) {
     color: var(--room-color-task);
 }
@@ -189,6 +202,7 @@ small {
     z-index: 1;
     border: var(--room-size-border) solid;
     background: var(--room-color-background);
+    box-shadow: var(--room-shadow);
     white-space: nowrap;
 }
 
@@ -200,6 +214,7 @@ small {
 
 .contextual-reversed > :last-child {
     bottom: 100%;
+    box-shadow: var(--room-size-border) 0 #00000080;
 }
 
 .contextual > ul:last-child {
@@ -212,8 +227,8 @@ small {
 }
 
 .icon {
-    height: 1em;
-    vertical-align: calc(-1em / 8);
+    height: 1rem;
+    vertical-align: calc(-1rem / 8);
 }
 
 .tile {
@@ -241,19 +256,21 @@ small {
 .room-window {
     position: absolute;
     inset: var(--room-size-gap) var(--room-size-gap) auto var(--room-size-gap);
+    max-width: var(--room-size-content);
     max-height: calc(100% - 2 * var(--room-size-gap));
+    margin-inline: auto;
     overflow: hidden auto;
     background: var(--room-color-background);
+    box-shadow: var(--room-shadow);
     /* Enable window scrolling */
     touch-action: pan-y;
 }
 
-.room-window:not(.room-window-open) {
+/* Work around Firefox not invalidating nth-child-of selectors (see
+ * https://bugzilla.mozilla.org/show_bug.cgi?id=1874042) */
+.room-window:not(.room-window-open),
+.room-window:not(:nth-last-child(1 of .room-window-open)) {
     display: none;
-}
-
-.room-window-maximized {
-    bottom: var(--room-size-gap);
 }
 
 .room-entity {

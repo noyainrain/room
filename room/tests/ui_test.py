@@ -37,7 +37,7 @@ def element_at(element: WebElement, location: Location, *,
 
 class UITest(TestCase):
     TIMEOUT = 1
-    PLAYER_SPEED = OnlineRoom.SIZE / 2 * Tile.SIZE
+    PLAYER_SPEED = OnlineRoom.HEIGHT / 2 * Tile.SIZE
 
     def setUp(self) -> None:
         def run() -> None:
@@ -133,9 +133,9 @@ class UITest(TestCase):
 
         # Move
         player = self.browser.find_element(By.CSS_SELECTOR, '.room-game-player')
-        location: Location = {'x': 0, 'y': 0}
+        location = cast(Location, tile.location)
         hud = self.browser.find_element(By.CSS_SELECTOR, '.room-game-hud')
-        scale = cast(dict[str, int], hud.size)['height'] / (OnlineRoom.SIZE * Tile.SIZE)
+        scale = cast(dict[str, int], hud.size)['height'] / (OnlineRoom.HEIGHT * Tile.SIZE)
         t = distance(cast(Location, player.location), location) / (self.PLAYER_SPEED * scale)
         actions = ActionChains(self.browser)
         actions.click_and_hold(tile).perform()

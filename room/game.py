@@ -22,7 +22,7 @@ from datetime import timedelta
 from logging import getLogger
 from os import PathLike
 from pathlib import Path
-from typing import Annotated, ClassVar, Literal, NoReturn, TypeVar, Union
+from typing import Annotated, ClassVar, Literal, NoReturn, TypeVar, Union, cast
 
 from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field, field_serializer,
                       field_validator, model_validator)
@@ -111,8 +111,10 @@ class Player(BaseModel): # type: ignore[misc]
 
         async def perform(self) -> Player.MovePlayerAction:
             room = context.room.get()
-            size = room.SIZE * Tile.SIZE
-            if not (0 <= self.position[0] < size and 0 <= self.position[1] < size):
+            if (
+                not (0 <= self.position[0] < room.WIDTH * Tile.SIZE and
+                     0 <= self.position[1] < room.HEIGHT * Tile.SIZE)
+            ):
                 raise ValueError(f'Out-of-range position {self.position}')
             self.player.position = self.position
             await room.publish(self)
@@ -263,10 +265,6 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
 
        Room file version.
 
-    .. attribute:: SIZE
-
-       Room width and height.
-
     .. attribute:: WIDTH
 
        Room width.
@@ -276,21 +274,40 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
        Room height.
     """
 
-    SIZE: ClassVar[int] = 8
-    WIDTH: ClassVar[int] = SIZE
-    HEIGHT: ClassVar[int] = SIZE
+    WIDTH: ClassVar[int] = 16
+    HEIGHT: ClassVar[int] = 9
 
     id: str
-    tile_ids: list[str]
+    tile_ids: Annotated[list[str], Field(min_length=WIDTH * HEIGHT, max_length=WIDTH * HEIGHT)]
     blueprints: dict[str, Tile]
-    version: Literal['0.2']
+    version: Literal['0.3']
 
     @model_validator(mode='before')
     @classmethod
     def _check(cls, data: dict[str, object]) -> dict[str, object]:
         # Update version
-        if data.get('version') in {None, '0.1'}:
-            data['version'] = '0.2'
+        if data.get('version') in {None, '0.1', '0.2'}:
+            data['version'] = '0.3'
+
+        # Update size (0.3)
+        source = data.get('tile_ids')
+        assert isinstance(source, list), f'Bad tile_ids type {type(source)}'
+        if len(source) == (source_width := 8) * (source_height := 8):
+            blueprints = data.get('blueprints')
+            assert isinstance(blueprints, dict), f'Bad blueprints type {type(blueprints)}'
+            try:
+                void_id = next(iter(cast(dict[str, object], blueprints)))
+            except StopIteration:
+                raise AssertionError('Empty blueprints') from None
+
+            tile_ids = [void_id] * cls.WIDTH * cls.HEIGHT
+            offset = ((cls.WIDTH - source_width) // 2, (cls.HEIGHT - source_height) // 2)
+            for y in range(0, source_height):
+                source_i = y * source_width
+                i = offset[0] + (y + offset[1]) * cls.WIDTH
+                tile_ids[i:i + source_width] = source[source_i:source_i + source_width]
+            data['tile_ids'] = tile_ids
+
         return data
 
     @property
@@ -314,7 +331,8 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
 
         On exit, leave the room again.
         """
-        player = Player(id=randstr(), position=(self.SIZE * Tile.SIZE / 2, ) * 2)
+        player = Player(id=randstr(),
+                        position=(self.WIDTH * Tile.SIZE / 2, self.HEIGHT * Tile.SIZE / 2))
         await self.publish(Player.MovePlayerAction(player_id=player.id, position=player.position))
         self.players[player.id] = player
         await player.publish(self.WelcomeAction(player_id=player.id, room=self))
@@ -582,7 +600,7 @@ class Game:
         }
         room = OnlineRoom(
             id=randstr(), tile_ids=['void'] * (OfflineRoom.WIDTH * OfflineRoom.HEIGHT),
-            blueprints=blueprints, version='0.2')
+            blueprints=blueprints, version='0.3')
         self.rooms[room.id] = room
         return room
 

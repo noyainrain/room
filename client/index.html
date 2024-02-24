@@ -31,14 +31,18 @@
             <style>
                 room-game {
                     --room-game-scale: 1;
-                    --room-game-room-size: 8;
+                    --room-game-room-width: 16;
+                    --room-game-room-height: 9;
                     display: block;
                     height: 100%;
                 }
 
                 .room-game-content {
-                    width: calc(var(--room-game-scale) * var(--room-game-room-size) * 8px);
-                    height: calc(var(--room-game-scale) * var(--room-game-room-size) * 8px);
+                    position: absolute;
+                    inset: 0;
+                    width: calc(var(--room-game-scale) * var(--room-game-room-width) * 8px);
+                    height: calc(var(--room-game-scale) * var(--room-game-room-height) * 8px);
+                    margin: auto;
                 }
 
                 .room-game-scene {
@@ -48,15 +52,14 @@
                 }
 
                 .room-game-scene .room-game-content {
-                    width: calc(var(--room-game-room-size) * 8px);
-                    height: calc(var(--room-game-room-size) * 8px);
+                    width: calc(var(--room-game-room-width) * 8px);
+                    height: calc(var(--room-game-room-height) * 8px);
                     transform: scale(var(--room-game-scale));
-                    transform-origin: left top;
                 }
 
                 .room-game-tiles {
                     display: grid;
-                    grid: repeat(var(--room-game-room-size), 1fr) / repeat(var(--room-game-room-size), 1fr);
+                    grid: repeat(var(--room-game-room-height), 1fr) / repeat(var(--room-game-room-width), 1fr);
                 }
 
                 .room-game-tile-usable.room-game-tile-reachable::before,
@@ -112,8 +115,6 @@
                 }
 
                 .room-game-hud {
-                    position: absolute;
-                    inset: 0 auto auto 0;
                     pointer-events: none;
                 }
 
@@ -121,10 +122,30 @@
                     pointer-events: auto;
                 }
 
+                .room-game-portrait-hint {
+                    position: absolute;
+                    inset: 100% 0 auto 0;
+                    text-align: center;
+                }
+
+                room-game:not(.room-game-portrait) .room-game-portrait-hint {
+                    display: none;
+                }
+
+                room-game:not(.room-game-can-fullscreen) .room-game-fullscreen {
+                    display: none;
+                }
+
+                .room-game-fullscreen button:focus,
+                .room-game-fullscreen button:hover {
+                    color: black;
+                }
+
                 .room-game-equipment {
                     position: absolute;
                     inset: auto auto var(--room-size-gap) var(--room-size-gap);
                     background: var(--room-color-background);
+                    box-shadow: var(--room-shadow);
                 }
 
                 .room-game-equipment img[src=""] {
@@ -148,6 +169,18 @@
             </div>
 
             <div class="room-game-hud room-game-content">
+                <p class="room-game-portrait-hint">
+                    <small>
+                        Best played in landscape mode
+                        <span class="room-game-fullscreen">
+                            ·
+                            <button class="inline">
+                                <img class="icon" src="/static/images/fullscreen.png" />Fullscreen
+                            </button>
+                        </span>
+                    </small>
+                </p>
+
                 <p class="room-game-equipment" tabindex="0">
                     <img class="tile" src="" />
                     <span class="tile placeholder"></span>
@@ -246,24 +279,29 @@
                     </ul>
                 </room-workshop>
 
-                <room-blueprint class="room-window-maximized">
+                <room-blueprint>
                     <style>
+                        room-blueprint {
+                            display: flex;
+                            flex-flow: column;
+                        }
+
                         room-blueprint form {
                             display: flex;
-                            height: 100%;
+                            min-height: 0;
                             flex-flow: column;
                         }
 
                         room-blueprint canvas {
                             align-self: start;
-                            flex: auto;
+                            flex: 0 1 calc(var(--room-size-content) - 2 * var(--room-size-gap));
                             border: var(--room-size-border) solid;
                             margin: var(--room-size-gap);
                             /* Disable window scrolling */
                             touch-action: none;
                         }
 
-                        room-blueprint-source {
+                        .room-blueprint-source {
                             display: none;
                         }
 
@@ -356,7 +394,7 @@
                     </form>
                 </room-blueprint>
 
-                <room-blueprint-effects class="room-window-maximized">
+                <room-blueprint-effects>
                     <style>
                         room-blueprint-effects dl {
                             display: grid;
@@ -498,7 +536,7 @@
 
                 <room-window class="room-game-connection">
                     <p>Connecting…</p>
-                </room>
+                </room-window>
             </div>
         </room-game>
 
