@@ -28,6 +28,7 @@ from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field
                       field_validator, model_validator)
 
 from . import context
+from .core import PrivatePlayer
 from .util import open_image_data_url, randstr, timer
 
 A = TypeVar('A', bound='Action')
@@ -48,7 +49,7 @@ class Action(BaseModel): # type: ignore[misc]
         return type(self).__name__
 
     @property
-    def player(self) -> Player:
+    def player(self) -> Member:
         """Player performing the action."""
         try:
             return context.room.get().players[self.player_id]
@@ -74,7 +75,7 @@ class FailedAction(Action): # type: ignore[misc]
 
     message: str
 
-class Player(BaseModel): # type: ignore[misc]
+class Member(BaseModel): # type: ignore[misc]
     """Present player.
 
     .. attribute:: id
@@ -109,7 +110,7 @@ class Player(BaseModel): # type: ignore[misc]
 
         position: tuple[float, float]
 
-        async def perform(self) -> Player.MovePlayerAction:
+        async def perform(self) -> Member.MovePlayerAction:
             room = context.room.get()
             if (
                 not (0 <= self.position[0] < room.WIDTH * Tile.SIZE and
@@ -323,23 +324,23 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
        Present players by ID.
     """
 
-    players: dict[str, Player] = Field(default_factory=dict)
+    players: dict[str, Member] = Field(default_factory=dict)
 
     @asynccontextmanager
-    async def join(self) -> AsyncGenerator[Player, None]:
+    async def join(self) -> AsyncGenerator[Member, None]:
         """Context manager to create a player and join the room.
 
         On exit, leave the room again.
         """
-        player = Player(id=randstr(),
+        player = Member(id=randstr(),
                         position=(self.WIDTH * Tile.SIZE / 2, self.HEIGHT * Tile.SIZE / 2))
-        await self.publish(Player.MovePlayerAction(player_id=player.id, position=player.position))
+        await self.publish(Member.MovePlayerAction(player_id=player.id, position=player.position))
         self.players[player.id] = player
         await player.publish(self.WelcomeAction(player_id=player.id, room=self))
         yield player
 
         del self.players[player.id]
-        await self.publish(Player.MovePlayerAction(player_id=player.id, position=(-1, -1)))
+        await self.publish(Member.MovePlayerAction(player_id=player.id, position=(-1, -1)))
 
     async def publish(self, action: Action) -> None:
         """Publish an *action* to all players."""
@@ -583,6 +584,10 @@ class Game:
     .. attribute:: data_path
 
        Path to data directory.
+
+    .. attribute:: players
+
+       TODO.
     """
 
     _OfflineRoomModel: ClassVar[TypeAdapter[OfflineRoom]] = TypeAdapter(OfflineRoom)
@@ -592,20 +597,23 @@ class Game:
     def __init__(self, *, data_path: PathLike[str] | str = 'data') -> None:
         self.rooms: dict[str, OnlineRoom] = {}
         self.data_path = Path(data_path)
-        self._auth_map: dict[str, str] = {}
+        self._auth_map: dict[str, PrivatePlayer] = {}
 
-    def sign_in(self) -> tuple[str, str]:
+    players: dict[str, PrivatePlayer]
+
+    def sign_in(self) -> PrivatePlayer:
         """TODO."""
-        user = randstr()
-        secret = randstr()
-        self._auth_map[secret] = user
-        return user, secret
+        # TODO token should be cryptographically random probably
+        player = PrivatePlayer(id=randstr(), token=randstr())
+        self._auth_map[player.token] = player
+        return player
 
-    def authenticate(self, secret: str) -> str:
+    def authenticate(self, token: str) -> PrivatePlayer:
         """TODO."""
         try:
-            return self._auth_map[secret]
+            return self._auth_map[token]
         except KeyError:
+            # TODO better exception, like AuthenticationError
             raise ValueError('Auth fail') from None
 
     def create_room(self) -> OnlineRoom:
@@ -624,9 +632,13 @@ class Game:
 
         If there is a problem reading from the data directory, an :exc:`OSError` is raised.
         """
+
+        rooms_path = self.data_path / 'rooms'
+        players_path = self.data_path / 'players'
+
         logger = getLogger(__name__)
         with timer() as t:
-            for path in self.data_path.iterdir():
+            for path in rooms_path.iterdir():
                 room = OnlineRoom.model_validate_json(path.read_text(), strict=True)
                 self.rooms[room.id] = room
         logger.info('Loaded %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
@@ -636,8 +648,10 @@ class Game:
             await sleep(self._SAVE_INTERVAL.total_seconds())
             try:
                 with timer() as t:
+                    #for player in self.players.values():
+
                     for room in self.rooms.values():
-                        path = self.data_path / f'{room.id}.json'
+                        path = rooms_path / f'{room.id}.json'
                         path.write_bytes(self._OfflineRoomModel.dump_json(room))
                 logger.info('Saved %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
             except OSError as e:

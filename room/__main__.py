@@ -21,12 +21,12 @@ from aiohttp.web import (Application, AppRunner, BaseRequest, HTTPBadRequest, Re
 from pydantic import StringConstraints, TypeAdapter, ValidationError
 
 from . import context
-from .game import FailedAction, Game, OnlineRoom, Player
+from .game import FailedAction, Game, OnlineRoom, Member
 from .util import WSMessage, cancel, timer
 
 _NonblankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _AnyAction = Union[OnlineRoom.PlaceTileAction, OnlineRoom.UseAction,
-                   OnlineRoom.UpdateBlueprintAction, Player.MovePlayerAction]
+                   OnlineRoom.UpdateBlueprintAction, Member.MovePlayerAction]
 
 _CLOSE_CODE_UNKNOWN_ROOM = 4004
 
@@ -92,7 +92,7 @@ async def _rooms(request: Request) -> WebSocketResponse:
                 if error:
                     await websocket.send_str(
                         FailedAction(player_id=player.id, message=error).model_dump_json())
-            if not isinstance(action, Player.MovePlayerAction):
+            if not isinstance(action, Member.MovePlayerAction):
                 logger.log(
                     logging.WARNING if error else logging.INFO, '%s %s %s @%s %s (%.1fms)',
                     request.remote, player.id, action.type if action else 'Action', room.id,
@@ -117,7 +117,7 @@ async def _post_errors(request: Request) -> Response:
 
 class _Logger(AbstractAccessLogger):
     def log(self, request: BaseRequest, response: StreamResponse, time: float) -> None:
-        player = cast('Player | None', request.get('player'))
+        player = cast('Member | None', request.get('player'))
         getLogger(__name__).log(
             logging.WARNING if response.status >= 400 else logging.INFO, '%s %s %s %s %d (%.1fms)',
             request.remote, player.id if player else '-', request.method, request.rel_url,
@@ -135,9 +135,10 @@ class _Logger(AbstractAccessLogger):
 # TODO user model
 # TODO store users somewhere
 
+# TODO move this to signal, and check for /api prefix (for now /rooms prefix)
 @middleware
-async def authenticate(request: Request,
-                       handler: Callable[[Request], Awaitable[StreamResponse]]) -> StreamResponse:
+async def _authenticate(request: Request,
+                        handler: Callable[[Request], Awaitable[StreamResponse]]) -> StreamResponse:
     print('REQ', request)
     auth = request.cookies.get('auth')
     print('AUTH COOKIE', auth)
@@ -149,10 +150,10 @@ async def authenticate(request: Request,
             print('AUTHED AS', player)
         except ValueError as e:
             exc = HTTPUnauthorized()
-            exc.del_cookie(auth)
+            exc.del_cookie('auth')
             raise exc from e
     else:
-        player, auth = context.game.get().sign_in()
+        player = context.game.get().sign_in()
         print('CREATED PLAYER', player)
         signed_in = True
 
@@ -162,9 +163,7 @@ async def authenticate(request: Request,
     response = await handler(request)
 
     if signed_in:
-        # TODO how would this work with streaming responses?? -> maybe use signal instead
-        # TODO only for API routes? (websocket!!)
-        response.set_cookie('auth', auth)
+        response.set_cookie('auth', player.token)
     return response
 
 # TODO why do we set the cookie in micro on GET /devices/self
@@ -206,7 +205,7 @@ async def main() -> int:
             url_host = host or 'localhost'
             url = options['url'] or f'http://{url_host}:{port}'
 
-            app = Application(middlewares=[authenticate])
+            app = Application(middlewares=[_authenticate])
             app.add_routes(routes)
             app.router.add_static('/static', client_path)
             websockets: set[WebSocketResponse] = set()
@@ -227,7 +226,10 @@ async def main() -> int:
                 logger.info('Started server at %s', url)
 
                 try:
+                    # TODO game.init()?
                     game.data_path.mkdir(exist_ok=True)
+                    (game.data_path / 'rooms').mkdir(exist_ok=True)
+                    (game.data_path / 'players').mkdir(exist_ok=True)
                     await game.run()
                 except OSError as e:
                     logger.critical('Failed to access data directory (%s)', e)

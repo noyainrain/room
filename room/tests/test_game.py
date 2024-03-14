@@ -3,7 +3,7 @@
 from unittest import IsolatedAsyncioTestCase
 
 from room import context
-from room.game import (DEFAULT_BLUEPRINTS, Game, OnlineRoom, Player, Tile, TransformTileEffect,
+from room.game import (DEFAULT_BLUEPRINTS, Game, OnlineRoom, Member, Tile, TransformTileEffect,
                        UseCause)
 
 class TestCase(IsolatedAsyncioTestCase):
@@ -17,9 +17,9 @@ class TestCase(IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
         await self._join.__aexit__(None, None, None)
 
-class PlayerTest(TestCase):
+class MemberTest(TestCase):
     async def test_perform_move_player_action(self) -> None:
-        action = Player.MovePlayerAction(player_id=self.player.id, position=(1, 2))
+        action = Member.MovePlayerAction(player_id=self.player.id, position=(1, 2))
         await action.perform()
         self.assertEqual(self.player.position, (1, 2))
 
