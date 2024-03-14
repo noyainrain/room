@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from asyncio import Queue, sleep
+from asyncio import CancelledError, Queue, sleep
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -643,18 +643,29 @@ class Game:
                 self.rooms[room.id] = room
         logger.info('Loaded %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
 
+        #while True:
+        #    try:
+        #        await sleep(self._SAVE_INTERVAL.total_seconds())
+        #        save()
+        #    except CancelledError:
+        #        save()
+        #        raise
+
         while True:
             # pylint: disable=broad-exception-caught
-            await sleep(self._SAVE_INTERVAL.total_seconds())
             try:
-                with timer() as t:
-                    #for player in self.players.values():
+                await sleep(self._SAVE_INTERVAL.total_seconds())
+            finally:
+                # Save a last time, even if the task gets cancelled
+                try:
+                    with timer() as t:
+                        #for player in self.players.values():
 
-                    for room in self.rooms.values():
-                        path = rooms_path / f'{room.id}.json'
-                        path.write_bytes(self._OfflineRoomModel.dump_json(room))
-                logger.info('Saved %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
-            except OSError as e:
-                logger.error('Failed to write to data directory (%s)', e)
-            except Exception:
-                logger.exception('Unhandled error')
+                        for room in self.rooms.values():
+                            path = rooms_path / f'{room.id}.json'
+                            path.write_bytes(self._OfflineRoomModel.dump_json(room))
+                    logger.info('Saved %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
+                except OSError as e:
+                    logger.error('Failed to write to data directory (%s)', e)
+                except Exception:
+                    logger.exception('Unhandled error')
