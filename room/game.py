@@ -592,6 +592,21 @@ class Game:
     def __init__(self, *, data_path: PathLike[str] | str = 'data') -> None:
         self.rooms: dict[str, OnlineRoom] = {}
         self.data_path = Path(data_path)
+        self._auth_map: dict[str, str] = {}
+
+    def sign_in(self) -> tuple[str, str]:
+        """TODO."""
+        user = randstr()
+        secret = randstr()
+        self._auth_map[secret] = user
+        return user, secret
+
+    def authenticate(self, secret: str) -> str:
+        """TODO."""
+        try:
+            return self._auth_map[secret]
+        except KeyError:
+            raise ValueError('Auth fail') from None
 
     def create_room(self) -> OnlineRoom:
         """Create a new room."""

@@ -2,7 +2,7 @@
 
 import asyncio
 from asyncio import CancelledError, Task, create_task, current_task, get_running_loop
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Awaitable, Callable
 from configparser import ConfigParser, ParsingError
 from http import HTTPStatus
 from importlib import resources
@@ -16,7 +16,8 @@ from typing import Annotated, Union, cast
 from aiohttp import WSCloseCode
 from aiohttp.abc import AbstractAccessLogger
 from aiohttp.web import (Application, AppRunner, BaseRequest, HTTPBadRequest, Request, Response,
-                         RouteTableDef, StreamResponse, TCPSite, WebSocketResponse)
+                         RouteTableDef, StreamResponse, TCPSite, WebSocketResponse,
+                         HTTPUnauthorized, middleware)
 from pydantic import StringConstraints, TypeAdapter, ValidationError
 
 from . import context
@@ -122,6 +123,52 @@ class _Logger(AbstractAccessLogger):
             request.remote, player.id if player else '-', request.method, request.rel_url,
             response.status, time * 1000)
 
+# User / Player Model
+# id: str
+# name: str
+# auth_token: str
+
+# if invalid token: error (and clear cookie)
+# if no token: create user (set cookie)
+
+# CONTINUE
+# TODO user model
+# TODO store users somewhere
+
+@middleware
+async def authenticate(request: Request,
+                       handler: Callable[[Request], Awaitable[StreamResponse]]) -> StreamResponse:
+    print('REQ', request)
+    auth = request.cookies.get('auth')
+    print('AUTH COOKIE', auth)
+
+    signed_in = False
+    if auth:
+        try:
+            player = context.game.get().authenticate(auth)
+            print('AUTHED AS', player)
+        except ValueError as e:
+            exc = HTTPUnauthorized()
+            exc.del_cookie(auth)
+            raise exc from e
+    else:
+        player, auth = context.game.get().sign_in()
+        print('CREATED PLAYER', player)
+        signed_in = True
+
+    #context.player.set(player)
+    #request['player'] = player
+
+    response = await handler(request)
+
+    if signed_in:
+        # TODO how would this work with streaming responses?? -> maybe use signal instead
+        # TODO only for API routes? (websocket!!)
+        response.set_cookie('auth', auth)
+    return response
+
+# TODO why do we set the cookie in micro on GET /devices/self
+
 async def main() -> int:
     """Run Room."""
     if current_thread() == main_thread():
@@ -159,7 +206,7 @@ async def main() -> int:
             url_host = host or 'localhost'
             url = options['url'] or f'http://{url_host}:{port}'
 
-            app = Application()
+            app = Application(middlewares=[authenticate])
             app.add_routes(routes)
             app.router.add_static('/static', client_path)
             websockets: set[WebSocketResponse] = set()
