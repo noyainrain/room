@@ -81,6 +81,20 @@ class RoomTest(TestCase):
         self.assertFalse(blueprint.effects)
 
 class GameTest(TestCase):
+    def test_sign_in(self) -> None:
+        player = self.game.sign_in()
+        self.assertIn(player.id, self.game.players)
+
+    def test_authenticate(self) -> None:
+        player = self.game.sign_in()
+        authenticated = self.game.authenticate(player.token)
+        self.assertEqual(authenticated, player)
+
+    def test_authenticate_bad_token(self) -> None:
+        self.game.sign_in()
+        with self.assertRaises(ValueError):
+            self.game.authenticate('meow')
+
     def test_create_room(self) -> None:
         room = self.game.create_room()
         self.assertIn(room.id, self.game.rooms)

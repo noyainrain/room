@@ -595,19 +595,21 @@ class Game:
     _SAVE_INTERVAL: ClassVar[timedelta] = timedelta(minutes=5)
 
     def __init__(self, *, data_path: PathLike[str] | str = 'data') -> None:
+        self.players: dict[str, PrivatePlayer] = {}
         self.rooms: dict[str, OnlineRoom] = {}
         self.data_path = Path(data_path)
         self._auth_map: dict[str, PrivatePlayer] = {}
 
-    players: dict[str, PrivatePlayer]
-
+    # TODO add test
     def sign_in(self) -> PrivatePlayer:
         """TODO."""
         # TODO token should be cryptographically random probably
         player = PrivatePlayer(id=randstr(), token=randstr())
+        self.players[player.id] = player
         self._auth_map[player.token] = player
         return player
 
+    # TODO add test
     def authenticate(self, token: str) -> PrivatePlayer:
         """TODO."""
         try:
@@ -635,8 +637,24 @@ class Game:
 
         rooms_path = self.data_path / 'rooms'
         players_path = self.data_path / 'players'
-
         logger = getLogger(__name__)
+
+        # Update
+        if not rooms_path.exists():
+            paths = list(self.data_path.iterdir())
+            rooms_path.mkdir()
+            players_path.mkdir()
+            for path in paths:
+                path.rename(rooms_path / path.name)
+
+        with timer() as t:
+            for path in players_path.iterdir():
+                player = PrivatePlayer.model_validate_json(path.read_text(), strict=True)
+                # TODO maybe util function add_player, so it automatically gets added to the auth
+                # map
+                self.players[player.id] = player
+                self._auth_map[player.token] = player
+        logger.info('Loaded %d players(s) (%.1fms)', len(self.players), t() * 1000)
         with timer() as t:
             for path in rooms_path.iterdir():
                 room = OnlineRoom.model_validate_json(path.read_text(), strict=True)
@@ -659,8 +677,12 @@ class Game:
                 # Save a last time, even if the task gets cancelled
                 try:
                     with timer() as t:
-                        #for player in self.players.values():
+                        for player in self.players.values():
+                            path = players_path / f'{player.id}.json'
+                            path.write_text(player.model_dump_json())
+                    logger.info('Saved %d player(s) (%.1fms)', len(self.players), t() * 1000)
 
+                    with timer() as t:
                         for room in self.rooms.values():
                             path = rooms_path / f'{room.id}.json'
                             path.write_bytes(self._OfflineRoomModel.dump_json(room))

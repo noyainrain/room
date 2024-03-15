@@ -132,8 +132,6 @@ class _Logger(AbstractAccessLogger):
 # if no token: create user (set cookie)
 
 # CONTINUE
-# TODO user model
-# TODO store users somewhere
 
 # TODO move this to signal, and check for /api prefix (for now /rooms prefix)
 @middleware
@@ -227,9 +225,13 @@ async def main() -> int:
 
                 try:
                     # TODO game.init()?
-                    game.data_path.mkdir(exist_ok=True)
-                    (game.data_path / 'rooms').mkdir(exist_ok=True)
-                    (game.data_path / 'players').mkdir(exist_ok=True)
+                    #game.data_path.mkdir(exist_ok=True)
+                    #(game.data_path / 'rooms').mkdir(exist_ok=True)
+                    #(game.data_path / 'players').mkdir(exist_ok=True)
+                    if not game.data_path.exists():
+                        game.data_path.mkdir()
+                        (game.data_path / 'rooms').mkdir()
+                        (game.data_path / 'players').mkdir()
                     await game.run()
                 except OSError as e:
                     logger.critical('Failed to access data directory (%s)', e)
