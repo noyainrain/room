@@ -1,10 +1,10 @@
 /** Room UI. */
 
-import {WindowElement, renderTileItem} from "./core.js";
-import {Vector, emitParticle, querySelector} from "./util.js";
-import {BlueprintEffectsElement} from "./workshop.js";
+import {WindowElement, renderTileItem} from "core";
+import {Vector, emitParticle, querySelector} from "util";
+import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 /**
  * Player inventory window.

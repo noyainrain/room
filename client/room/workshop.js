@@ -1,7 +1,7 @@
 /** Blueprint workshop UI. */
 
-import {WindowElement, renderTileItem} from "./core.js";
-import {AssertionError, chunk, querySelector} from "./util.js";
+import {WindowElement, renderTileItem} from "core";
+import {AssertionError, chunk, querySelector} from "util";
 
 /** Blueprint effects editor window. */
 export class BlueprintEffectsElement extends WindowElement {

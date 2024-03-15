@@ -1,6 +1,6 @@
 /** Core concepts. */
 
-import {querySelector} from "./util.js";
+import {querySelector} from "util";
 
 /**
  * Foreground window.

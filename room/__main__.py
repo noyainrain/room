@@ -15,13 +15,14 @@ from typing import Annotated, Union, cast
 
 from aiohttp import WSCloseCode
 from aiohttp.abc import AbstractAccessLogger
-from aiohttp.web import (Application, AppRunner, BaseRequest, HTTPBadRequest, Request, Response,
-                         RouteTableDef, StreamResponse, TCPSite, WebSocketResponse)
+from aiohttp.web import (
+    Application, AppRunner, BaseRequest, FileResponse, HTTPBadRequest, Request, Response,
+    RouteTableDef, StaticResource, StreamResponse, TCPSite, WebSocketResponse)
 from pydantic import StringConstraints, TypeAdapter, ValidationError
 
 from . import context
 from .game import FailedAction, Game, OnlineRoom, Player
-from .util import WSMessage, cancel, timer
+from .util import WSMessage, cancel, template, timer
 
 _NonblankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _AnyAction = Union[OnlineRoom.PlaceTileAction, OnlineRoom.UseAction,
@@ -32,6 +33,21 @@ _CLOSE_CODE_UNKNOWN_ROOM = 4004
 routes = RouteTableDef()
 _ErrorModel = TypeAdapter(_NonblankStr)
 _AnyActionModel = TypeAdapter(_AnyAction)
+
+class Shell:
+    """Files comprising the application shell.
+
+    .. attribute:: static
+
+       Web resource serving the directory of static files.
+    """
+
+    def __init__(self, static: StaticResource) -> None:
+        self.static = static
+
+    def url(self, path: str) -> str:
+        """Generate a versioned URL for the file at *path*."""
+        return str(self.static.url_for(filename=path, append_version=True))
 
 @routes.get('/rooms')
 @routes.get('/rooms/{id}')
@@ -103,7 +119,9 @@ async def _rooms(request: Request) -> WebSocketResponse:
 
 @routes.get('/')
 async def _get_index(request: Request) -> Response:
-    return Response(text=cast(str, request.app['index_html']), content_type='text/html')
+    response = Response(text=cast(str, request.app['index_html']), content_type='text/html')
+    response.enable_compression()
+    return response
 
 @routes.post('/errors')
 async def _post_errors(request: Request) -> Response:
@@ -113,6 +131,11 @@ async def _post_errors(request: Request) -> Response:
     except ValidationError as e:
         raise HTTPBadRequest(text=f'Bad request ({e})', content_type='text/plain') from None
     return Response(status=HTTPStatus.NO_CONTENT)
+
+async def _configure_caching(_: Request, response: StreamResponse) -> None:
+    # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching#common_caching_patterns
+    response.headers['Cache-Control'] = ('public, max-age=31536000'
+                                         if isinstance(response, FileResponse) else 'no-cache')
 
 class _Logger(AbstractAccessLogger):
     def log(self, request: BaseRequest, response: StreamResponse, time: float) -> None:
@@ -161,10 +184,14 @@ async def main() -> int:
 
             app = Application()
             app.add_routes(routes)
-            app.router.add_static('/static', client_path)
+            static = app.router.add_static('/static', client_path)
+            assert isinstance(static, StaticResource)
+            app.on_response_prepare.append(_configure_caching)
+
             websockets: set[WebSocketResponse] = set()
             app['websockets'] = websockets
-            app['index_html'] = (client_path / 'index.html').read_text().replace('{url}', url)
+            t = template(f'{__package__}.res', 'client/index.html', double_braces=True)
+            app['index_html'] = t(shell=Shell(static), url=url)
 
             runner = None
             site = None

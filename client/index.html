@@ -8,7 +8,7 @@
         <meta name="description" content="Sandbox game about being creative in a limited space." />
         <meta name="keywords" content="sandbox, game, pixel art" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="{url}" />
+        <meta property="og:url" content="{{url}}" />
         <meta property="og:title" content="Room" />
         <meta
             property="og:description"
@@ -18,12 +18,21 @@
             Size as suggested by https://developers.facebook.com/docs/sharing/webmasters/images and
             https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image
         -->
-        <meta property="og:image" content="{url}/static/images/social.png" />
+        <meta property="og:image" content="{{url}}/static/images/social.png" />
         <meta property="og:image:alt" content="Room icon." />
 
-        <link rel="icon" href="/static/images/icon.png" />
-        <link rel="stylesheet" href="/static/room.css" />
-        <script type="module" src="/static/room/game.js"></script>
+        <link rel="icon" href="{{shell.url('images/icon.png')}}" />
+        <link rel="stylesheet" href="{{shell.url('room.css')}}" />
+        <script type="importmap">
+            {
+                "imports": {
+                    "core": "{{shell.url('room/core.js')}}",
+                    "util": "{{shell.url('room/util.js')}}",
+                    "workshop": "{{shell.url('room/workshop.js')}}"
+                }
+            }
+        </script>
+        <script type="module" src="{{shell.url('room/game.js')}}"></script>
     </head>
 
     <body>
@@ -175,7 +184,9 @@
                         <span class="room-game-fullscreen">
                             ·
                             <button class="inline">
-                                <img class="icon" src="/static/images/fullscreen.png" />Fullscreen
+                                <img
+                                    class="icon" src="{{shell.url('images/fullscreen.png')}}"
+                                />Fullscreen
                             </button>
                         </span>
                     </small>
@@ -203,7 +214,7 @@
                     <header>
                         <h2>Inventory</h2>
                         <button class="room-inventory-close">
-                            <img class="icon" src="/static/images/close.png" alt="Close" />
+                            <img class="icon" src="{{shell.url('images/close.png')}}" alt="Close" />
                         </button>
                     </header>
                     <ul>
@@ -225,11 +236,11 @@
 
                     <header>
                         <h2>
-                            <img class="icon" src="/static/images/icon.png" alt="" /> Room
+                            <img class="icon" src="{{shell.url('images/icon.png')}}" alt="" /> Room
                             <span></span>
                         </h2>
                         <button>
-                            <img class="icon" src="/static/images/close.png" alt="Close" />
+                            <img class="icon" src="{{shell.url('images/close.png')}}" alt="Close" />
                         </button>
                     </header>
                     <a class="block" href="https://www.twitch.tv/noyainrain" target="_blank">
@@ -266,14 +277,16 @@
                     <header>
                         <h2>Workshop</h2>
                         <button class="room-workshop-close">
-                            <img class="icon" src="/static/images/close.png" alt="Close" />
+                            <img class="icon" src="{{shell.url('images/close.png')}}" alt="Close" />
                         </button>
                     </header>
                     <p>Create and edit tiles:</p>
                     <ul>
                         <li class="room-workshop-create-blueprint" tabindex="0">
                             <span class="tile">
-                                <img class="icon" src="/static/images/add.png" alt="Create" />
+                                <img
+                                    class="icon" src="{{shell.url('images/add.png')}}" alt="Create"
+                                />
                             </span>
                         </li>
                     </ul>
@@ -376,7 +389,9 @@
                             <h2>Tile Editor</h2>
                             <button>Done</button>
                             <button class="room-blueprint-back" type="button">
-                                <img class="icon" src="/static/images/back.png" alt="Back" />
+                                <img
+                                    class="icon" src="{{shell.url('images/back.png')}}" alt="Back"
+                                />
                             </button>
                         </header>
                         <canvas width="8" height="8"></canvas>
@@ -387,7 +402,10 @@
                                 <input type="checkbox" name="wall" /> Wall
                             </label>
                             <button type="button" class="room-blueprint-effects">
-                                <img class="icon" src="/static/images/implication.png" alt="" />
+                                <img
+                                    class="icon" src="{{shell.url('images/implication.png')}}"
+                                    alt=""
+                                />
                                 <span></span>
                             </button>
                         </footer>
@@ -414,7 +432,9 @@
                             padding: var(--room-size-gap);
                             margin-block: var(--room-size-border);
                             content: "";
-                            background: url("/static/images/implication.png") center / 1em no-repeat;
+                            background:
+                                url("{{shell.url('images/implication.png')}}") center / 1em
+                                no-repeat;
                         }
 
                         room-blueprint-effects dt > :first-child {
@@ -476,7 +496,10 @@
                                 <ul>
                                     <li class="room-effect-list-add-effect contextual">
                                         <p class="card" tabindex="0">
-                                            <img class="icon" src="/static/images/add.png" alt="" />
+                                            <img
+                                                class="icon" src="{{shell.url('images/add.png')}}"
+                                                alt=""
+                                            />
                                             Add Effect
                                         </p>
                                         <ul>
@@ -486,7 +509,7 @@
                                             >
                                                 <img
                                                     class="icon"
-                                                    src="/static/images/transform-tile-effect.png"
+                                                    src="{{shell.url('images/transform-tile-effect.png')}}"
                                                 /> Transform
                                             </li>
                                         </ul>
@@ -503,7 +526,9 @@
                             <h2>Tile Effects Editor</h2>
                             <button>Done</button>
                             <button type="button" class="room-blueprint-effects-back">
-                                <img class="icon" src="/static/images/back.png" alt="Back" />
+                                <img
+                                    class="icon" src="{{shell.url('images/back.png')}}" alt="Back"
+                                />
                             </button>
                         </header>
                         <dl>
@@ -511,14 +536,18 @@
                                 class="room-blueprint-effects-add-cause contextual contextual-reversed"
                             >
                                 <p class="card" tabindex="0">
-                                    <img class="icon" src="/static/images/add.png" alt="" /> Add
-                                    Cause
+                                    <img
+                                        class="icon" src="{{shell.url('images/add.png')}}" alt=""
+                                    />
+                                    Add Cause
                                 </p>
                                 <ul>
                                     <li class="room-blueprint-effects-use-cause" tabindex="0">
                                         <img
-                                            class="icon" src="/static/images/use-cause.png" alt=""
-                                        /> Use
+                                            class="icon" src="{{shell.url('images/use-cause.png')}}"
+                                            alt=""
+                                        />
+                                        Use
                                     </li>
                                 </ul>
                             </dt>
@@ -546,7 +575,7 @@
 
         <template id="room-effect-header-template">
             <style>
-                @import "/static/room.css";
+                @import "{{shell.url('room.css')}}";
 
                 :host {
                     display: block;
@@ -560,14 +589,14 @@
             <header>
                 <h3><slot></slot></h3>
                 <button type="button" class="room-effect-header-remove">
-                    <img class="icon" src="/static/images/remove.png" alt="Remove" />
+                    <img class="icon" src="{{shell.url('images/remove.png')}}" alt="Remove" />
                 </button>
             </header>
         </template>
 
         <template id="room-use-cause-template">
             <room-effect-header>
-                <img class="icon" src="/static/images/use-cause.png" /> Use
+                <img class="icon" src="{{shell.url('images/use-cause.png')}}" /> Use
             </room-effect-header>
         </template>
 
@@ -584,7 +613,8 @@
             </style>
 
             <room-effect-header>
-                <img class="icon" src="/static/images/transform-tile-effect.png" /> Transform
+                <img class="icon" src="{{shell.url('images/transform-tile-effect.png')}}" />
+                Transform
             </room-effect-header>
             <div class="room-transform-tile-effect-blueprint contextual">
                 <p tabindex="0"><img class="tile" /></p>
