@@ -315,6 +315,11 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
         """Grid of room tiles, serialized in row direction."""
         return [self.blueprints[tile_id] for tile_id in self.tile_ids]
 
+import PIL.Image
+from PIL.Image import Image
+from io import BytesIO
+from base64 import b64encode
+
 class OnlineRoom(OfflineRoom): # type: ignore[misc]
     """Creative space.
 
@@ -324,6 +329,38 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
     """
 
     players: dict[str, Player] = Field(default_factory=dict)
+
+    async def get_image(self) -> bytes:
+        """TODO."""
+        #path = Path('data-images')
+        #path.mkdir(exist_ok=True)
+        #for room in self.rooms.values():
+        with timer() as t:
+            cache: dict[str, Image] = {}
+            image = PIL.Image.new('RGBA', (self.WIDTH * Tile.SIZE, self.HEIGHT * Tile.SIZE))
+            tiles = self.tiles
+
+            for y in range(self.HEIGHT):
+                for x in range(self.WIDTH):
+                    i = x + y * self.WIDTH
+                    tile = tiles[i]
+
+                    try:
+                        obj = cache[tile.image]
+                    except KeyError:
+                        obj = cache[tile.image] = open_image_data_url(tile.image)
+
+                    #with open_image_data_url(tile.image) as obj:
+                    #    image.paste(obj, (x * Tile.SIZE, y * Tile.SIZE))
+                    image.paste(obj, (x * Tile.SIZE, y * Tile.SIZE))
+
+            # image.save(path / f'{room.id}.png')
+            stream = BytesIO()
+            image.save(stream, format='PNG')
+            #print(f'data:image/png;base64,{b64encode(stream.getvalue()).decode()}')
+
+        print('RENDERED IMG', t() * 1000, 'ms', 'TILES IN CACHE', len(cache))
+        return stream.getvalue()
 
     @asynccontextmanager
     async def join(self) -> AsyncGenerator[Player, None]:

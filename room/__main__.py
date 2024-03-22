@@ -49,6 +49,12 @@ class Shell:
         """Generate a versioned URL for the file at *path*."""
         return str(self.static.url_for(filename=path, append_version=True))
 
+@routes.get('/api/rooms/{id}/image.png')
+async def _get_room_image(request: Request) -> Response:
+    room = context.game.get().rooms[request.match_info['id']]
+    body = await room.get_image()
+    return Response(body=body, content_type='image/png')
+
 @routes.get('/rooms')
 @routes.get('/rooms/{id}')
 async def _rooms(request: Request) -> WebSocketResponse:
