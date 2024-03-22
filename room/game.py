@@ -618,14 +618,17 @@ class Game:
 
         while True:
             # pylint: disable=broad-exception-caught
-            await sleep(self._SAVE_INTERVAL.total_seconds())
             try:
-                with timer() as t:
-                    for room in self.rooms.values():
-                        path = self.data_path / f'{room.id}.json'
-                        path.write_bytes(self._OfflineRoomModel.dump_json(room))
-                logger.info('Saved %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
-            except OSError as e:
-                logger.error('Failed to write to data directory (%s)', e)
-            except Exception:
-                logger.exception('Unhandled error')
+                await sleep(self._SAVE_INTERVAL.total_seconds())
+            finally:
+                # Also save on exit, i.e. when the task is cancelled
+                try:
+                    with timer() as t:
+                        for room in self.rooms.values():
+                            path = self.data_path / f'{room.id}.json'
+                            path.write_bytes(self._OfflineRoomModel.dump_json(room))
+                    logger.info('Saved %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
+                except OSError as e:
+                    logger.error('Failed to write to data directory (%s)', e)
+                except Exception:
+                    logger.exception('Unhandled error')
