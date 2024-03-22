@@ -70,6 +70,12 @@ async def _get_room(request: Request) -> Response:
         raise HTTPNotFound(text='{}', content_type='application/json') from e
     return model_response(room, content_type=room.MEDIA_TYPE)
 
+@api_routes.get('/rooms/{id}/image.png')
+async def _get_room_image(request: Request) -> Response:
+    room = context.game.get().rooms[request.match_info['id']]
+    body = await room.get_image()
+    return Response(body=body, content_type='image/png')
+
 @api_routes.get('/rooms/{id}/members')
 async def _get_room_members(request: Request) -> Response:
     try:
