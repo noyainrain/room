@@ -4,7 +4,7 @@ import {WindowElement, renderTileItem} from "core";
 import {Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.2.2";
+const VERSION = "0.2.3";
 
 /**
  * Player inventory window.

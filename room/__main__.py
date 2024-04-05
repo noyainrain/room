@@ -207,7 +207,10 @@ async def main() -> int:
                 logger.info('Started server at %s', url)
 
                 try:
-                    game.data_path.mkdir(exist_ok=True)
+                    try:
+                        game.create_data_directory()
+                    except FileExistsError:
+                        pass
                     await game.run()
                 except OSError as e:
                     logger.critical('Failed to access data directory (%s)', e)

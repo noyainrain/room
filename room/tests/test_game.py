@@ -1,5 +1,7 @@
 # pylint: disable=missing-docstring
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import IsolatedAsyncioTestCase
 
 from room import context
@@ -86,3 +88,15 @@ class GameTest(TestCase):
         self.assertIn(room.id, self.game.rooms)
         self.assertEqual(set(room.tile_ids), {'void'}) # type: ignore[misc]
         self.assertEqual(len(room.blueprints), len(DEFAULT_BLUEPRINTS))
+
+    def test_create_data_directory(self) -> None:
+        with TemporaryDirectory() as directory:
+            game = Game(data_path=Path(directory) / 'data')
+            game.create_data_directory()
+            self.assertTrue((game.data_path / 'room').exists())
+
+    def test_create_data_directory_existing_directory(self) -> None:
+        with TemporaryDirectory() as directory:
+            game = Game(data_path=directory)
+            with self.assertRaises(FileExistsError):
+                game.create_data_directory()

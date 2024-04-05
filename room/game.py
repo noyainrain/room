@@ -19,6 +19,7 @@ from asyncio import Queue, sleep
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import timedelta
+import errno
 from logging import getLogger
 from os import PathLike
 from pathlib import Path
@@ -604,14 +605,30 @@ class Game:
         self.rooms[room.id] = room
         return room
 
+    def create_data_directory(self) -> None:
+        """Create the data directory at :attr:`data_path`.
+
+        If there is a problem creating the directory, an :exc:`OSError` is raised, most notably a
+        :exc:`FileExistsError` if it already exists.
+        """
+        self.data_path.mkdir()
+        (self.data_path / 'room').touch()
+
     async def run(self) -> NoReturn:
         """Run the game.
 
         If there is a problem reading from the data directory, an :exc:`OSError` is raised.
         """
+        # Update marker
+        if all(path.match('*.json') for path in self.data_path.iterdir()):
+            (self.data_path / 'room').touch()
+
+        if not (self.data_path / 'room').exists():
+            raise OSError(errno.EINVAL, 'Bad Room data directory')
+
         logger = getLogger(__name__)
         with timer() as t:
-            for path in self.data_path.iterdir():
+            for path in self.data_path.glob('*.json'):
                 room = OnlineRoom.model_validate_json(path.read_text(), strict=True)
                 self.rooms[room.id] = room
         logger.info('Loaded %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
