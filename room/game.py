@@ -186,6 +186,23 @@ class UseCause(Cause): # type: ignore[misc]
 
     type: Literal['UseCause'] = 'UseCause'
 
+# Use -> TransformTileEffect
+# Use -> FollowLinkEffect
+#        Open, Access, Browse
+
+class FollowLinkEffect(Effect): # type: ignore[misc]
+    """TODO."""
+    # Open link to
+    # a) website
+    # b) room
+    # c) window in the game
+
+    type: Literal['FollowLinkEffect'] = 'FollowLinkEffect'
+    url: str
+
+    async def apply(self, tile_index: int) -> None:
+        pass
+
 class TransformTileEffect(Effect): # type: ignore[misc]
     """Effect of transforming a tile into another.
 
@@ -208,7 +225,7 @@ class TransformTileEffect(Effect): # type: ignore[misc]
         context.room.get().tile_ids[tile_index] = self.blueprint_id
 
 AnyCause = Annotated[Union[UseCause], Field(discriminator='type')]
-AnyEffect = Annotated[Union[TransformTileEffect], Field(discriminator='type')]
+AnyEffect = Annotated[Union[TransformTileEffect, FollowLinkEffect], Field(discriminator='type')]
 
 class Tile(BaseModel): # type: ignore[misc]
     """Room tile.
@@ -532,7 +549,8 @@ DEFAULT_BLUEPRINTS = {
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAFElEQVQYV2NctWrV'
             'fwY8gHFkKAAApMMX8a16WAwAAAAASUVORK5CYII=',
         wall=False,
-        effects={}
+        # TODO no
+        effects={UseCause(): [FollowLinkEffect(url='https://discord.gg/2QVRP29vZH')]}
     ),
     'wall-horizontal': Tile(
         id='wall-horizontal',

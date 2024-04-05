@@ -24,9 +24,20 @@
  * @property {string} blueprint_id
  */
 
+/**
+ * @typedef FollowLinkEffect
+ * @property {"FollowLinkEffect"} type
+ * @property {string} url
+ */
+
+/**
+ * @typedef OtherEffect
+ * @property {"*"} type
+ */
+
 /** @typedef {UseCause} Cause */
 
-/** @typedef {TransformTileEffect} Effect */
+/** @typedef {TransformTileEffect | FollowLinkEffect | OtherEffect} Effect */
 
 /**
  * @typedef Tile

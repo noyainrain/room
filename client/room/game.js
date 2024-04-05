@@ -861,6 +861,10 @@ export class GameElement extends HTMLElement {
     #use(action) {
         for (const effect of action.effects) {
             switch (effect.type) {
+            case "FollowLinkEffect":
+                // TODO
+                console.log("Do you want to visit this link", effect.url);
+                break;
             case "TransformTileEffect":
                 // eslint-disable-next-line no-case-declarations
                 const tile = this.blueprints.get(effect.blueprint_id);
