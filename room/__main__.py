@@ -55,8 +55,10 @@ class Shell:
         """Generate a versioned URL for the file at *path*."""
         return str(self.static.url_for(filename=path, append_version=True))
 
-@api_routes.get('')
-@api_routes.get('/{id}')
+# TODO /api/rooms/{id}
+# TODO /api/rooms/{id}/actions
+@api_routes.get('/rooms')
+@api_routes.get('/rooms/{id}')
 async def _rooms(request: Request) -> WebSocketResponse:
     logger = getLogger(__name__)
     websocket = WebSocketResponse()
@@ -169,7 +171,10 @@ async def _update_cookie(request: Request, response: StreamResponse) -> None:
     else:
         set_cookie('', max_age=0)
 
+# OQ should we rather have a client 404?
 @ui_routes.get('/')
+@ui_routes.get('/rooms/{id}')
+@ui_routes.get('/invites/{id}')
 async def _get_index(request: Request) -> Response:
     response = Response(text=cast(str, request.app['index_html']), content_type='text/html')
     response.enable_compression()

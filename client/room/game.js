@@ -659,15 +659,57 @@ export class GameElement extends HTMLElement {
         }, GameElement.#HEARTBEAT * 1000);
         this.#tick();
 
-        const roomID = (location.hash.slice(1) || localStorage.roomID) ?? null;
-        // When a new room is created, store it
-        if (!roomID) {
-            this.addEventListener("WelcomeAction", event => {
-                localStorage.roomID =
-                    /** @type {ActionEvent<WelcomeAction>} */ (event).action.room.id;
-            }, {once: true});
+        // TODO storage room const roomID = (location.hash.slice(1) || ) ?? null;
+
+        const defhandler = () => {
+            // Store the new room
+            const roomID = localStorage.roomID ?? null;
+            console.log("DEFAULT HANDLER", roomID);
+            if (!roomID) {
+                this.addEventListener("WelcomeAction", event => {
+                    localStorage.roomID =
+                        /** @type {ActionEvent<WelcomeAction>} */ (event).action.room.id;
+                }, {once: true});
+            }
+            this.#connect(roomID);
+        };
+
+        /** @param {string} [roomID] */
+        const room = roomID => {
+            console.log("ROOM HANDLER", roomID);
+            this.#connect(roomID ?? ""); // XXX
+        };
+
+        /** @param {string} code */
+        //const invite = code => {
+        //    this.#connect(code);
+        //};
+
+        // TODO if invite fails, we still have the invite link in location bar, that good?
+        /**
+         * @callback Handler
+         * @param {string} [arg]
+         */
+
+        /** @type {Object<string, Handler>} */
+        const pages = {
+            ["^/invites/([^/]*)$"]: room,
+            ["^/rooms/([^/]*)$"]: room
+        };
+
+        /** @type {Handler} */
+        let route = defhandler;
+        let arg = undefined; // XXX
+        for (const [url, handler] of Object.entries(pages)) {
+            const match = location.pathname.match(url);
+            console.log("MATCH", url, match);
+            if (match) {
+                route = handler;
+                arg = match[1];
+                break;
+            }
         }
-        this.#connect(roomID);
+        route(arg);
     }
 
     /**
@@ -758,7 +800,7 @@ export class GameElement extends HTMLElement {
             await new Promise(resolve => setTimeout(resolve, delay * 1000));
 
             const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-            const path = roomID ? `/rooms/${roomID}` : "/rooms";
+            const path = roomID ? `/api/rooms/${roomID}` : "/api/rooms";
             this.#socket = new WebSocket(`${protocol}//${location.host}${path}`);
             this.#socket.addEventListener("open", () => this.#connectionWindow.close());
             this.#socket.addEventListener("close", async event => {
@@ -809,7 +851,8 @@ export class GameElement extends HTMLElement {
             this.#spawnMember(member);
         }
         this.#memberElement = this.#memberElements.get(action.member_id) ?? null;
-        location.hash = this.room.id;
+        // location.hash = this.room.id;
+        history.replaceState(null, "", `/rooms/${this.room.id}`);
 
         // Start
         (async () => {
