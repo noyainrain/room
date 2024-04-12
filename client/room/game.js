@@ -661,6 +661,11 @@ export class GameElement extends HTMLElement {
 
         // TODO storage room const roomID = (location.hash.slice(1) || ) ?? null;
 
+        /**
+         * @callback Handler
+         * @param {...string} args
+         */
+
         const defhandler = () => {
             // Store the new room
             const roomID = localStorage.roomID ?? null;
@@ -674,22 +679,11 @@ export class GameElement extends HTMLElement {
             this.#connect(roomID);
         };
 
-        /** @param {string} [roomID] */
+        /** @param {string} roomID */
         const room = roomID => {
             console.log("ROOM HANDLER", roomID);
-            this.#connect(roomID ?? ""); // XXX
+            this.#connect(roomID);
         };
-
-        /** @param {string} code */
-        //const invite = code => {
-        //    this.#connect(code);
-        //};
-
-        // TODO if invite fails, we still have the invite link in location bar, that good?
-        /**
-         * @callback Handler
-         * @param {string} [arg]
-         */
 
         /** @type {Object<string, Handler>} */
         const pages = {
@@ -699,17 +693,17 @@ export class GameElement extends HTMLElement {
 
         /** @type {Handler} */
         let route = defhandler;
-        let arg = undefined; // XXX
+        let args = []; // XXX
         for (const [url, handler] of Object.entries(pages)) {
             const match = location.pathname.match(url);
             console.log("MATCH", url, match);
             if (match) {
                 route = handler;
-                arg = match[1];
+                args.push(...match.slice(1));
                 break;
             }
         }
-        route(arg);
+        route(...args);
     }
 
     /**
@@ -852,7 +846,7 @@ export class GameElement extends HTMLElement {
         }
         this.#memberElement = this.#memberElements.get(action.member_id) ?? null;
         // location.hash = this.room.id;
-        history.replaceState(null, "", `/rooms/${this.room.id}`);
+        history.replaceState(null, "", `/rooms/${this.room.id}${location.hash}`);
 
         // Start
         (async () => {
