@@ -1,7 +1,7 @@
 /** Room UI. */
 
 import {WindowElement, renderTileItem} from "core";
-import {Vector, emitParticle, querySelector} from "util";
+import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
 const VERSION = "0.3.0";
@@ -74,7 +74,7 @@ class InventoryElement extends WindowElement {
     set room(value) {
         this.#room = value;
         querySelector(this.#a, "span").textContent = this.#a.href =
-            this.#room ? `${location.origin}/#${this.#room.id}` : "";
+            this.#room ? `${location.origin}/invites/${this.#room.id}` : "";
     }
 }
 customElements.define("room-inventory", InventoryElement);
@@ -468,6 +468,13 @@ export class GameElement extends HTMLElement {
     /** @type {?WebSocket} */
     #socket = null;
 
+    // OQ + or *
+    #router = new Router([
+        ["^/rooms/([^/]*)$", this.#setUpRoom.bind(this)],
+        ["^/invites/([^/]*)$", this.#setUpRoom.bind(this)],
+        ["^/$", this.#setUpPlayerRoom.bind(this)]
+    ]);
+
     constructor() {
         super();
 
@@ -538,6 +545,27 @@ export class GameElement extends HTMLElement {
         this.addEventListener("FailedAction", event => {
             throw new Error(/** @type {ActionEvent<FailedAction>} */ (event).action.message);
         });
+    }
+
+    /** @param {string} id */
+    #setUpRoom(id) {
+        this.#connect(id);
+    }
+
+    async #setUpPlayerRoom() {
+        let roomID = localStorage.roomID ?? null;
+        console.log("DEFAULT HANDLER", roomID);
+        if (!roomID) {
+            let room;
+            try {
+                const response = await fetch("/api/rooms", {method: "POST"});
+                room = await response.json();
+            } catch (TypeError) {
+                // TODO something
+            }
+            roomID = localStorage.roomID = room.id;
+        }
+        this.#connect(roomID);
     }
 
     connectedCallback() {
@@ -659,51 +687,13 @@ export class GameElement extends HTMLElement {
         }, GameElement.#HEARTBEAT * 1000);
         this.#tick();
 
-        // TODO storage room const roomID = (location.hash.slice(1) || ) ?? null;
-
-        /**
-         * @callback Handler
-         * @param {...string} args
-         */
-
-        const defhandler = () => {
-            // Store the new room
-            const roomID = localStorage.roomID ?? null;
-            console.log("DEFAULT HANDLER", roomID);
-            if (!roomID) {
-                this.addEventListener("WelcomeAction", event => {
-                    localStorage.roomID =
-                        /** @type {ActionEvent<WelcomeAction>} */ (event).action.room.id;
-                }, {once: true});
-            }
-            this.#connect(roomID);
-        };
-
-        /** @param {string} roomID */
-        const room = roomID => {
-            console.log("ROOM HANDLER", roomID);
-            this.#connect(roomID);
-        };
-
-        /** @type {Object<string, Handler>} */
-        const pages = {
-            ["^/invites/([^/]*)$"]: room,
-            ["^/rooms/([^/]*)$"]: room
-        };
-
-        /** @type {Handler} */
-        let route = defhandler;
-        let args = []; // XXX
-        for (const [url, handler] of Object.entries(pages)) {
-            const match = location.pathname.match(url);
-            console.log("MATCH", url, match);
-            if (match) {
-                route = handler;
-                args.push(...match.slice(1));
-                break;
-            }
+        // Compatibility with old URL pattern
+        const match = location.hash.match(/^#([a-z]{16})$/);
+        if (match) {
+            history.replaceState(null, "", `/invites/${match[1]}`);
         }
-        route(...args);
+
+        this.#router.route(location.pathname);
     }
 
     /**
@@ -784,7 +774,7 @@ export class GameElement extends HTMLElement {
     }
 
     /**
-     * @param {?string} roomID
+     * @param {string} roomID
      * @param {Object} [options]
      * @param {number} [options.delay]
      */
@@ -794,8 +784,9 @@ export class GameElement extends HTMLElement {
             await new Promise(resolve => setTimeout(resolve, delay * 1000));
 
             const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-            const path = roomID ? `/api/rooms/${roomID}` : "/api/rooms";
-            this.#socket = new WebSocket(`${protocol}//${location.host}${path}`);
+            this.#socket = new WebSocket(
+                `${protocol}//${location.host}/api/rooms/${roomID}/actions`
+            );
             this.#socket.addEventListener("open", () => this.#connectionWindow.close());
             this.#socket.addEventListener("close", async event => {
                 this.#connectionWindow.close();
@@ -804,15 +795,11 @@ export class GameElement extends HTMLElement {
                 } else if ([1001, 1006].includes(event.code)) {
                     this.#connect(roomID, {delay: 1});
                 } else {
-                    throw new Error("Assertion failed");
+                    throw new AssertionError();
                 }
             });
             this.#socket.addEventListener("message", event => {
                 const action = /** @type {Action} */ (JSON.parse(event.data));
-                // When a new room is created, remember it for reconnecting
-                if (!roomID && action.type === "WelcomeAction") {
-                    roomID = action.room.id;
-                }
                 this.dispatchEvent(new ActionEvent(action));
             });
         })();

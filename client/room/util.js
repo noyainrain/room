@@ -125,6 +125,58 @@ export async function emitParticle(element, start, end) {
     );
 }
 
+/**
+ * TODO.
+ * @template T
+ * @callback ResolveCallback
+ * @param {...string} args
+ * @returns {T}
+ */
+
+/**
+ * TODO.
+ * @template T
+ */
+export class Router {
+    /**
+     * TODO.
+     * @type {[string, T | ResolveCallback<T>][]}
+     */
+    routes;
+
+    /** @param {[string, T | ResolveCallback<T>][]} routes */
+    constructor(routes) {
+        this.routes = routes;
+    }
+
+    /**
+     * TODO.
+     * @param {string} path
+     * @returns {?T}
+     */
+    route(path) {
+        let args = []; // XXX
+        /** @type {T | ResolveCallback<T> | null} */
+        let route = null;
+        for (const [pattern, target] of this.routes) {
+            const match = path.match(pattern);
+            console.log("MATCH", pattern, match);
+            if (match) {
+                route = target;
+                args.push(...match.slice(1));
+                break;
+            }
+        }
+
+        if (route) {
+            // TODO Yes, T might also be function, will raise error, that's documented
+            // @ts-ignore
+            return typeof route === "function" ? route(...args) : route;
+        }
+        return null;
+    }
+}
+
 /** Vector operations. */
 export class Vector {
     /**
