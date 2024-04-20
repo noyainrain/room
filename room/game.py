@@ -16,31 +16,34 @@
 from __future__ import annotations
 
 from asyncio import Queue, sleep
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
 import errno
 from logging import getLogger
 from os import PathLike
 from pathlib import Path
+from secrets import token_urlsafe
 from typing import Annotated, ClassVar, Literal, NoReturn, TypeVar, Union, cast
 
 from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field, field_serializer,
                       field_validator, model_validator)
 
 from . import context
+from .core import Player, PrivatePlayer
 from .util import open_image_data_url, randstr, timer
 
 A = TypeVar('A', bound='Action')
 
 class Action(BaseModel): # type: ignore[misc]
-    """Player action.
+    """Action by a room member.
 
-    .. attribute:: player_id
+    .. attribute:: member_id
 
-       ID of the player performing the action.
+       ID of the room member performing the action.
     """
-    player_id: str
+
+    member_id: str
 
     @computed_field # type: ignore[misc]
     @property
@@ -49,12 +52,9 @@ class Action(BaseModel): # type: ignore[misc]
         return type(self).__name__
 
     @property
-    def player(self) -> Player:
-        """Player performing the action."""
-        try:
-            return context.room.get().players[self.player_id]
-        except KeyError:
-            raise ReferenceError(self.player_id) from None
+    def member(self) -> Member:
+        """Room member performing the action."""
+        return context.game.get().members[self.member_id]
 
     async def perform(self: A) -> A:
         """Perform the action.
@@ -75,12 +75,20 @@ class FailedAction(Action): # type: ignore[misc]
 
     message: str
 
-class Player(BaseModel): # type: ignore[misc]
-    """Present player.
+class Member(BaseModel): # type: ignore[misc]
+    """Player as member of a room.
 
     .. attribute:: id
 
-       Unique player ID.
+       Unique member ID.
+
+    .. attribute:: player_id
+
+       Relevant player ID.
+
+    .. attribute:: room_id
+
+       Relevant room ID.
 
     .. attribute:: position
 
@@ -88,20 +96,37 @@ class Player(BaseModel): # type: ignore[misc]
     """
 
     id: str
+    player_id: str
+    room_id: str
     position: tuple[float, float]
     _queue: Queue[Action] = PrivateAttr(default_factory=Queue)
 
+    @property
+    def player(self) -> Player:
+        """Relevant player."""
+        return context.game.get().players[self.player_id]
+
+    @property
+    def room(self) -> OnlineRoom:
+        """Relevant room."""
+        return context.game.get().rooms[self.room_id]
+
     async def actions(self) -> AsyncGenerator[Action, None]:
-        """Stream of actions intended for the player."""
+        """Stream of actions intended for the member."""
         while True:
             yield await self._queue.get()
 
     async def publish(self, action: Action) -> None:
-        """Publish an *action* to the player."""
+        """Publish an *action* to the member."""
         await self._queue.put(action)
 
-    class MovePlayerAction(Action): # type: ignore[misc]
-        """Action of moving the player.
+    def with_player(self) -> MemberWithPlayer:
+        """Create a copy of the member with player included."""
+        return MemberWithPlayer(id=self.id, player_id=self.player_id, room_id=self.room_id,
+                                position=self.position)
+
+    class MoveMemberAction(Action): # type: ignore[misc]
+        """Action of moving the room member.
 
         .. attribute:: position
 
@@ -110,16 +135,24 @@ class Player(BaseModel): # type: ignore[misc]
 
         position: tuple[float, float]
 
-        async def perform(self) -> Player.MovePlayerAction:
+        async def perform(self) -> Member.MoveMemberAction:
             room = context.room.get()
             if (
                 not (0 <= self.position[0] < room.WIDTH * Tile.SIZE and
                      0 <= self.position[1] < room.HEIGHT * Tile.SIZE)
             ):
                 raise ValueError(f'Out-of-range position {self.position}')
-            self.player.position = self.position
+            self.member.position = self.position
             await room.publish(self)
             return self
+
+class MemberWithPlayer(Member): # type: ignore[misc]
+    """Room member with player included."""
+
+    @computed_field # type: ignore[misc]
+    @property
+    def player(self) -> Player:
+        return super().player
 
 class Cause(BaseModel): # type: ignore[misc]
     """Cause of a tile effect.
@@ -202,7 +235,7 @@ class Tile(BaseModel): # type: ignore[misc]
     """
 
     _EffectsItemModel: ClassVar[TypeAdapter[tuple[AnyCause, list[AnyEffect]]]] = (
-        TypeAdapter(tuple[AnyCause, list[AnyEffect]])) # type: ignore[arg-type]
+        TypeAdapter(tuple[AnyCause, list[AnyEffect]]))
 
     SIZE: ClassVar[int] = 8
 
@@ -317,35 +350,54 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
         return [self.blueprints[tile_id] for tile_id in self.tile_ids]
 
 class OnlineRoom(OfflineRoom): # type: ignore[misc]
-    """Creative space.
+    """Creative space."""
 
-    .. attribute:: players
+    _members: list[Member] = PrivateAttr(default_factory=list)
 
-       Present players by ID.
-    """
-
-    players: dict[str, Player] = Field(default_factory=dict)
+    @property
+    def members(self) -> Sequence[Member]:
+        """Room members."""
+        return self._members
 
     @asynccontextmanager
-    async def join(self) -> AsyncGenerator[Player, None]:
-        """Context manager to create a player and join the room.
+    async def enter(self) -> AsyncGenerator[Member, None]:
+        """Context manager to enter the room as member.
 
-        On exit, leave the room again.
+        On exit also exit the room again.
         """
-        player = Player(id=randstr(),
-                        position=(self.WIDTH * Tile.SIZE / 2, self.HEIGHT * Tile.SIZE / 2))
-        await self.publish(Player.MovePlayerAction(player_id=player.id, position=player.position))
-        self.players[player.id] = player
-        await player.publish(self.WelcomeAction(player_id=player.id, room=self))
-        yield player
+        game = context.game.get()
+        member = game.create_member(self)
+        await self.publish(Member.MoveMemberAction(member_id=member.id, position=member.position))
+        await member.publish(self.WelcomeAction(member_id=member.id, room=self.with_members()))
+        yield member
 
-        del self.players[player.id]
-        await self.publish(Player.MovePlayerAction(player_id=player.id, position=(-1, -1)))
+        game.delete_member(member)
+        await self.publish(Member.MoveMemberAction(member_id=member.id, position=(-1, -1)))
 
     async def publish(self, action: Action) -> None:
-        """Publish an *action* to all players."""
-        for player in self.players.values():
-            await player.publish(action)
+        """Publish an *action* to all members."""
+        for member in self._members:
+            await member.publish(action)
+
+    def with_members(self) -> OnlineRoomWithMembers:
+        """Create a copy of the room with members included."""
+        room = OnlineRoomWithMembers(id=self.id, tile_ids=self.tile_ids, blueprints=self.blueprints,
+                                     version=self.version)
+        room._members = self._members
+        return room
+
+    def link_member(self, member: Member) -> None:
+        """Link an existing *member*."""
+        if not member.room_id == self.id:
+            raise ValueError(f'Alien member room_id {member.room_id}')
+        self._members.append(member)
+
+    def unlink_member(self, member: Member) -> None:
+        """Unlink a *member*."""
+        try:
+            self._members.remove(member)
+        except ValueError:
+            raise LookupError(member.id) from None
 
     class WelcomeAction(Action): # type: ignore[misc]
         """Handshake action.
@@ -355,7 +407,7 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
            Joined room.
         """
 
-        room: OnlineRoom
+        room: OnlineRoomWithMembers
 
     class PlaceTileAction(Action): # type: ignore[misc]
         """Action of placing a tile.
@@ -446,6 +498,15 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
             room.blueprints[action.blueprint.id] = action.blueprint
             await room.publish(action)
             return action
+
+class OnlineRoomWithMembers(OnlineRoom): # type: ignore[misc]
+    """Room with members included."""
+
+    @computed_field # type: ignore[misc]
+    @property
+    def members(self) -> Sequence[MemberWithPlayer]:
+        """Room members."""
+        return [member.with_player() for member in self._members]
 
 DEFAULT_BLUEPRINTS = {
     'void': Tile(
@@ -577,9 +638,17 @@ DEFAULT_BLUEPRINTS = {
 class Game:
     """Game API.
 
+    .. attribute:: players
+
+       Players by ID.
+
     .. rooms:: rooms
 
        Rooms by ID.
+
+    .. attribute:: members
+
+       Room members by ID.
 
     .. attribute:: data_path
 
@@ -591,8 +660,28 @@ class Game:
     _SAVE_INTERVAL: ClassVar[timedelta] = timedelta(minutes=5)
 
     def __init__(self, *, data_path: PathLike[str] | str = 'data') -> None:
+        self.players: dict[str, PrivatePlayer] = {}
         self.rooms: dict[str, OnlineRoom] = {}
+        self.members: dict[str, Member] = {}
         self.data_path = Path(data_path)
+        self._tokens: dict[str, PrivatePlayer] = {}
+
+    def sign_in(self) -> PrivatePlayer:
+        """Sign in a player."""
+        player = PrivatePlayer(id=randstr(), token=token_urlsafe())
+        self._add_player(player)
+        return player
+
+    def _add_player(self, player: PrivatePlayer) -> None:
+        self.players[player.id] = player
+        self._tokens[player.token] = player
+
+    def authenticate(self, token: str) -> PrivatePlayer:
+        """Authenticate a player with *token*.
+
+        If authentication fails, a :exc:`LookupError` is raised.
+        """
+        return self._tokens[token]
 
     def create_room(self) -> OnlineRoom:
         """Create a new room."""
@@ -605,6 +694,19 @@ class Game:
         self.rooms[room.id] = room
         return room
 
+    def create_member(self, room: OnlineRoom) -> Member:
+        """Create a new *room* member."""
+        member = Member(id=randstr(), player_id=context.player.get().id, room_id=room.id,
+                        position=(room.WIDTH * Tile.SIZE / 2, room.HEIGHT * Tile.SIZE / 2))
+        self.members[member.id] = member
+        room.link_member(member)
+        return member
+
+    def delete_member(self, member: Member) -> None:
+        """Delete a room *member*."""
+        del self.members[member.id]
+        member.room.unlink_member(member)
+
     def create_data_directory(self) -> None:
         """Create the data directory at :attr:`data_path`.
 
@@ -612,6 +714,7 @@ class Game:
         :exc:`FileExistsError` if it already exists.
         """
         self.data_path.mkdir()
+        self._save()
         (self.data_path / 'room').touch()
 
     async def run(self) -> NoReturn:
@@ -626,12 +729,26 @@ class Game:
         if not (self.data_path / 'room').exists():
             raise OSError(errno.EINVAL, 'Bad Room data directory')
 
+        # Update players
+        state_path = self.data_path / 'state'
+        state_path.mkdir(exist_ok=True)
+        (state_path / 'players').mkdir(exist_ok=True)
+        rooms_path = state_path / 'rooms'
+        rooms_path.mkdir(exist_ok=True)
+        for path in self.data_path.glob('*.json'):
+            path.rename(rooms_path / path.name)
+
         logger = getLogger(__name__)
+
         with timer() as t:
-            for path in self.data_path.glob('*.json'):
+            state_path = self.data_path / 'state'
+            for path in (state_path / 'players').iterdir():
+                self._add_player(PrivatePlayer.model_validate_json(path.read_text(), strict=True))
+            for path in (state_path / 'rooms').iterdir():
                 room = OnlineRoom.model_validate_json(path.read_text(), strict=True)
                 self.rooms[room.id] = room
-        logger.info('Loaded %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
+        logger.info('Loaded %d player(s) and %d room(s) (%.1fms)', len(self.players),
+                    len(self.rooms), t() * 1000)
 
         while True:
             # pylint: disable=broad-exception-caught
@@ -640,12 +757,25 @@ class Game:
             finally:
                 # Also save on exit, i.e. when the task is cancelled
                 try:
-                    with timer() as t:
-                        for room in self.rooms.values():
-                            path = self.data_path / f'{room.id}.json'
-                            path.write_bytes(self._OfflineRoomModel.dump_json(room))
-                    logger.info('Saved %d room(s) (%.1fms)', len(self.rooms), t() * 1000)
+                    self._save()
                 except OSError as e:
                     logger.error('Failed to write to data directory (%s)', e)
                 except Exception:
                     logger.exception('Unhandled error')
+
+    def _save(self) -> None:
+        with timer() as t:
+            state_path = self.data_path / 'state'
+            state_path.mkdir(exist_ok=True)
+
+            players_path = state_path / 'players'
+            players_path.mkdir(exist_ok=True)
+            for player in self.players.values():
+                (players_path / f'{player.id}.json').write_text(player.model_dump_json())
+
+            rooms_path = state_path / 'rooms'
+            rooms_path.mkdir(exist_ok=True)
+            for room in self.rooms.values():
+                (rooms_path / f'{room.id}.json').write_bytes(self._OfflineRoomModel.dump_json(room))
+        getLogger(__name__).info('Saved %d player(s) and %d room(s) (%.1fms)', len(self.players),
+                                 len(self.rooms), t() * 1000)

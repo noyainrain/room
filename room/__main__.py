@@ -2,37 +2,43 @@
 
 import asyncio
 from asyncio import CancelledError, Task, create_task, current_task, get_running_loop
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Awaitable, Callable
 from configparser import ConfigParser, ParsingError
+from datetime import timedelta
 from http import HTTPStatus
+from http.cookies import SimpleCookie
 from importlib import resources
 import logging
 from logging import getLogger
 import signal
 import sys
 from threading import current_thread, main_thread
-from typing import Annotated, Union, cast
+from typing import Annotated, Union, cast, get_type_hints
+from urllib.parse import urlsplit
 
 from aiohttp import WSCloseCode
 from aiohttp.abc import AbstractAccessLogger
 from aiohttp.web import (
-    Application, AppRunner, BaseRequest, FileResponse, HTTPBadRequest, Request, Response,
-    RouteTableDef, StaticResource, StreamResponse, TCPSite, WebSocketResponse)
+    Application, AppRunner, BaseRequest, FileResponse, HTTPBadRequest, HTTPUnauthorized, Request,
+    Response, RouteTableDef, StaticResource, StreamResponse, TCPSite, WebSocketResponse, middleware)
 from pydantic import StringConstraints, TypeAdapter, ValidationError
 
 from . import context
-from .game import FailedAction, Game, OnlineRoom, Player
+from .game import FailedAction, Game, Member, OnlineRoom
 from .util import WSMessage, cancel, template, timer
 
 _NonblankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _AnyAction = Union[OnlineRoom.PlaceTileAction, OnlineRoom.UseAction,
-                   OnlineRoom.UpdateBlueprintAction, Player.MovePlayerAction]
+                   OnlineRoom.UpdateBlueprintAction, Member.MoveMemberAction]
 
+_CLOSE_CODE_UNAUTHORIZED = 4001
 _CLOSE_CODE_UNKNOWN_ROOM = 4004
 
-routes = RouteTableDef()
+api_routes = RouteTableDef()
+ui_routes = RouteTableDef()
+
 _ErrorModel = TypeAdapter(_NonblankStr)
-_AnyActionModel = TypeAdapter(_AnyAction)
+_AnyActionModel: TypeAdapter[_AnyAction] = TypeAdapter(_AnyAction)
 
 class Shell:
     """Files comprising the application shell.
@@ -49,8 +55,8 @@ class Shell:
         """Generate a versioned URL for the file at *path*."""
         return str(self.static.url_for(filename=path, append_version=True))
 
-@routes.get('/rooms')
-@routes.get('/rooms/{id}')
+@api_routes.get('')
+@api_routes.get('/{id}')
 async def _rooms(request: Request) -> WebSocketResponse:
     logger = getLogger(__name__)
     websocket = WebSocketResponse()
@@ -70,16 +76,15 @@ async def _rooms(request: Request) -> WebSocketResponse:
             return websocket
     context.room.set(room)
 
-    async with room.join() as player:
+    async with room.enter() as member:
         async def write() -> None:
-            async for action in player.actions():
+            async for action in member.actions():
                 await websocket.send_str(action.model_dump_json())
         task = create_task(write())
 
-        request['player'] = player
-        room_players = [count for room in game.rooms.values() if (count := len(room.players))]
-        logger.info('%s %s GET %s … (%d client(s) in %d room(s))', request.remote, player.id,
-                    request.rel_url, sum(room_players), len(room_players))
+        room_members = [count for room in game.rooms.values() if (count := len(room.members))]
+        logger.info('%s %s GET %s … (%d client(s) in %d room(s))', request.remote, member.player.id,
+                    request.rel_url, sum(room_members), len(room_members))
 
         async for message in cast(AsyncIterable[WSMessage], websocket):
             with timer() as t:
@@ -90,7 +95,7 @@ async def _rooms(request: Request) -> WebSocketResponse:
                     assert isinstance(message.data, str)
                     action = cast(_AnyAction,
                                   _AnyActionModel.validate_json(message.data, strict=True))
-                    if action.player_id != player.id:
+                    if action.member_id != member.id:
                         raise ValueError('Forbidden action')
                     await action.perform()
                 except ValidationError as e:
@@ -106,24 +111,71 @@ async def _rooms(request: Request) -> WebSocketResponse:
                     error = 'Unhandled server error'
                 if error:
                     await websocket.send_str(
-                        FailedAction(player_id=player.id, message=error).model_dump_json())
-            if not isinstance(action, Player.MovePlayerAction):
+                        FailedAction(member_id=member.id, message=error).model_dump_json())
+            if not isinstance(action, Member.MoveMemberAction):
                 logger.log(
                     logging.WARNING if error else logging.INFO, '%s %s %s @%s %s (%.1fms)',
-                    request.remote, player.id, action.type if action else 'Action', room.id,
+                    request.remote, member.player.id, action.type if action else 'Action', room.id,
                     'error' if error else 'ok', t() * 1000)
         await cancel(task)
 
     websockets.remove(websocket)
     return websocket
 
-@routes.get('/')
+@middleware
+async def _authenticate(request: Request,
+                        handler: Callable[[Request], Awaitable[StreamResponse]]) -> StreamResponse:
+    game = context.game.get()
+    if token := request.cookies.get('token'):
+        try:
+            player = game.authenticate(token)
+        except LookupError as e:
+            response_type = (
+                get_type_hints(request.match_info.handler)['return']) # type: ignore[misc]
+            if (
+                isinstance(response_type, type) # type: ignore[misc]
+                and issubclass(response_type, WebSocketResponse)
+            ):
+                websocket = WebSocketResponse()
+                await websocket.prepare(request)
+                await websocket.close(code=_CLOSE_CODE_UNAUTHORIZED)
+                return websocket
+            raise HTTPUnauthorized() from e
+    else:
+        player = game.sign_in()
+    context.player.set(player)
+
+    return await handler(request)
+
+async def _update_cookie(request: Request, response: StreamResponse) -> None:
+    # StreamResponse.set_cookie() only works before headers have been prepared
+    def set_cookie(value: str, *, max_age: 'int | None' = None, secure: bool = False,
+                   httponly: bool = False) -> None:
+        cookies = SimpleCookie()
+        cookies['token'] = value
+        cookie = cookies['token']
+        cookie['path'] = '/'
+        if max_age is not None:
+            cookie['max-age'] = max_age
+        cookie['secure'] = secure
+        cookie['httponly'] = httponly
+        response.headers.add('Set-Cookie', cookie.output(header='')[1:])
+
+    if player := context.player.get(None):
+        secure = request.app['secure'] # type: ignore[misc]
+        assert isinstance(secure, bool) # type: ignore[misc]
+        set_cookie(player.token, max_age=int(timedelta(days=365).total_seconds()), secure=secure,
+                   httponly=True)
+    else:
+        set_cookie('', max_age=0)
+
+@ui_routes.get('/')
 async def _get_index(request: Request) -> Response:
     response = Response(text=cast(str, request.app['index_html']), content_type='text/html')
     response.enable_compression()
     return response
 
-@routes.post('/errors')
+@ui_routes.post('/errors')
 async def _post_errors(request: Request) -> Response:
     try:
         getLogger(__name__).error('Unhandled client error\n%s',
@@ -139,7 +191,7 @@ async def _configure_caching(_: Request, response: StreamResponse) -> None:
 
 class _Logger(AbstractAccessLogger):
     def log(self, request: BaseRequest, response: StreamResponse, time: float) -> None:
-        player = cast('Player | None', request.get('player'))
+        player = context.player.get(None)
         getLogger(__name__).log(
             logging.WARNING if response.status >= 400 else logging.INFO, '%s %s %s %s %d (%.1fms)',
             request.remote, player.id if player else '-', request.method, request.rel_url,
@@ -182,14 +234,19 @@ async def main() -> int:
             url_host = host or 'localhost'
             url = options['url'] or f'http://{url_host}:{port}'
 
+            api = Application(middlewares=[_authenticate])
+            api.on_response_prepare.append(_update_cookie)
+            api.add_routes(api_routes)
+            api['secure'] = urlsplit(url).scheme == 'https'
+            websockets: set[WebSocketResponse] = set()
+            api['websockets'] = websockets
+
             app = Application()
-            app.add_routes(routes)
+            app.on_response_prepare.append(_configure_caching)
+            app.add_routes(ui_routes)
             static = app.router.add_static('/static', client_path)
             assert isinstance(static, StaticResource)
-            app.on_response_prepare.append(_configure_caching)
-
-            websockets: set[WebSocketResponse] = set()
-            app['websockets'] = websockets
+            app.add_subapp('/rooms', api)
             t = template(f'{__package__}.res', 'client/index.html', double_braces=True)
             app['index_html'] = t(shell=Shell(static), url=url)
 

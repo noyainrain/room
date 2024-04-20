@@ -37,7 +37,7 @@ def element_at(element: WebElement, location: Location, *,
 
 class UITest(TestCase):
     TIMEOUT = 1
-    PLAYER_SPEED = OnlineRoom.HEIGHT / 2 * Tile.SIZE
+    MEMBER_SPEED = OnlineRoom.HEIGHT / 2 * Tile.SIZE
 
     def setUp(self) -> None:
         def run() -> None:
@@ -132,15 +132,15 @@ class UITest(TestCase):
         self.browser.find_element(By.CSS_SELECTOR, '.room-workshop-close').click()
 
         # Move
-        player = self.browser.find_element(By.CSS_SELECTOR, '.room-game-player')
+        member = self.browser.find_element(By.CSS_SELECTOR, '.room-game-member')
         location = cast(Location, tile.location)
         hud = self.browser.find_element(By.CSS_SELECTOR, '.room-game-hud')
         scale = cast(dict[str, int], hud.size)['height'] / (OnlineRoom.HEIGHT * Tile.SIZE)
-        t = distance(cast(Location, player.location), location) / (self.PLAYER_SPEED * scale)
+        t = distance(cast(Location, member.location), location) / (self.MEMBER_SPEED * scale)
         actions = ActionChains(self.browser)
         actions.click_and_hold(tile).perform()
         WebDriverWait(self.browser, t + self.TIMEOUT).until(
-            element_at(player, location, delta=scale))
+            element_at(member, location, delta=scale))
         actions.reset_actions()
 
         # Place tile

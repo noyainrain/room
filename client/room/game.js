@@ -4,7 +4,7 @@ import {WindowElement, renderTileItem} from "core";
 import {Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.2.3";
+const VERSION = "0.3.0";
 
 /**
  * Player inventory window.
@@ -237,10 +237,10 @@ class BlueprintElement extends WindowElement {
 
             const game = querySelector(document, "room-game", GameElement);
             const image = this.#canvas.toDataURL();
-            if (game.player) {
+            if (game.member) {
                 game.perform({
                     type: "UpdateBlueprintAction",
-                    player_id: game.player.id,
+                    member_id: game.member.id,
                     blueprint: {
                         id: this.#blueprint?.id ?? "",
                         image,
@@ -367,18 +367,18 @@ customElements.define("room-entity", EntityElement);
  * @fires {ActionEvent#WelcomeAction}
  * @fires {ActionEvent#UseAction}
  * @fires {ActionEvent#UpdateBlueprintAction}
- * @fires {ActionEvent#MovePlayerAction}
+ * @fires {ActionEvent#MoveMemberAction}
  */
 export class GameElement extends HTMLElement {
     static #ROOM_WIDTH = 16;
     static #ROOM_HEIGHT = 9;
     // In px
     static #TILE_SIZE = 8;
-    static #PLAYER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII=";
+    static #MEMBER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII=";
     // In px / s
-    static #PLAYER_SPEED = GameElement.#ROOM_HEIGHT / 2 * GameElement.#TILE_SIZE;
+    static #MEMBER_SPEED = GameElement.#ROOM_HEIGHT / 2 * GameElement.#TILE_SIZE;
     // Two tiles horizontally, one vertically
-    static #PLAYER_REACH = Math.sqrt(5);
+    static #MEMBER_REACH = Math.sqrt(5);
     // In px
     static #MOVE_DELTA = 1;
     // In s
@@ -401,10 +401,10 @@ export class GameElement extends HTMLElement {
     blueprints = new Map();
 
     /**
-     * Current player. `null` before joining.
-     * @type {?Player}
+     * Current member. `null` before joining.
+     * @type {?Member}
      */
-    player = null;
+    member = null;
 
     /**
      * Player inventory window.
@@ -441,8 +441,8 @@ export class GameElement extends HTMLElement {
 
     /** @type {Tile[]} */
     #tiles = [];
-    /** @type {Map<string, Player>} */
-    #players = new Map();
+    /** @type {Map<string, Member>} */
+    #members = new Map();
     /** @type {?Tile} */
     #item = null;
     #time = performance.now() / 1000;
@@ -454,9 +454,9 @@ export class GameElement extends HTMLElement {
     /** @type {Set<HTMLDivElement>} */
     #reachableTileElements = new Set();
     /** @type {Map<string, EntityElement>} */
-    #playerElements = new Map();
+    #memberElements = new Map();
     /** @type {?EntityElement} */
-    #playerElement = null;
+    #memberElement = null;
     #itemElement = querySelector(this, ".room-game-item", EntityElement);
     #connectionWindow = querySelector(this, ".room-game-connection", WindowElement);
 
@@ -532,8 +532,8 @@ export class GameElement extends HTMLElement {
             )
         );
         this.addEventListener(
-            "MovePlayerAction",
-            event => this.#movePlayer(/** @type {ActionEvent<MovePlayerAction>} */ (event).action)
+            "MoveMemberAction",
+            event => this.#moveMember(/** @type {ActionEvent<MoveMemberAction>} */ (event).action)
         );
         this.addEventListener("FailedAction", event => {
             throw new Error(/** @type {ActionEvent<FailedAction>} */ (event).action.message);
@@ -586,12 +586,12 @@ export class GameElement extends HTMLElement {
         scene.addEventListener("pointerdown", event => {
             this.#tapTimeout = setTimeout(() => {
                 this.#moveInterval = setInterval(() => {
-                    if (this.player && this.#playerElement) {
+                    if (this.member && this.#memberElement) {
                         this.perform({
-                            type: "MovePlayerAction",
-                            player_id: this.player.id,
+                            type: "MoveMemberAction",
+                            member_id: this.member.id,
                             position: [
-                                this.#playerElement.position.x, this.#playerElement.position.y
+                                this.#memberElement.position.x, this.#memberElement.position.y
                             ]
                         });
                     }
@@ -603,18 +603,18 @@ export class GameElement extends HTMLElement {
             if (!this.#moveTarget) {
                 const element = this.#getTileElement(getSceneCoordinates(event));
                 const index = parseInt(element?.dataset.index ?? "");
-                if (element?.classList.contains("room-game-tile-reachable") && this.player) {
+                if (element?.classList.contains("room-game-tile-reachable") && this.member) {
                     if (this.#item) {
                         this.perform({
                             type: "PlaceTileAction",
-                            player_id: this.player.id,
+                            member_id: this.member.id,
                             tile_index: index,
                             blueprint_id: this.#item.id
                         });
                     } else {
                         this.perform({
                             type: "UseAction",
-                            player_id: this.player.id,
+                            member_id: this.member.id,
                             tile_index: index,
                             effects: []
                         });
@@ -649,11 +649,11 @@ export class GameElement extends HTMLElement {
         });
 
         setInterval(() => {
-            if (this.player && this.#playerElement) {
+            if (this.member && this.#memberElement) {
                 this.perform({
-                    type: "MovePlayerAction",
-                    player_id: this.player.id,
-                    position: [this.#playerElement.position.x, this.#playerElement.position.y]
+                    type: "MoveMemberAction",
+                    member_id: this.member.id,
+                    position: [this.#memberElement.position.x, this.#memberElement.position.y]
                 });
             }
         }, GameElement.#HEARTBEAT * 1000);
@@ -793,22 +793,22 @@ export class GameElement extends HTMLElement {
             }
             return tile;
         });
-        this.#players = new Map(Object.entries(this.room.players));
-        this.player = this.#players.get(action.player_id) ?? null;
+        this.#members = new Map(this.room.members.map(member => [member.id, member]));
+        this.member = this.#members.get(action.member_id) ?? null;
 
         this.inventoryWindow.room = this.room;
         this.inventoryWindow.items = Array.from(this.blueprints.values());
         this.workshopWindow.blueprints = this.blueprints;
 
         this.#renderTiles();
-        for (const element of this.#playerElements.values()) {
+        for (const element of this.#memberElements.values()) {
             element.remove();
         }
-        this.#playerElements.clear();
-        for (const player of this.#players.values()) {
-            this.#spawnPlayer(player);
+        this.#memberElements.clear();
+        for (const member of this.#members.values()) {
+            this.#spawnMember(member);
         }
-        this.#playerElement = this.#playerElements.get(action.player_id) ?? null;
+        this.#memberElement = this.#memberElements.get(action.member_id) ?? null;
         location.hash = this.room.id;
 
         // Start
@@ -874,29 +874,31 @@ export class GameElement extends HTMLElement {
         }
     }
 
-    /** @param {MovePlayerAction} action */
-    #movePlayer(action) {
-        if (action.player_id === this.player?.id) {
+    /** @param {MoveMemberAction} action */
+    #moveMember(action) {
+        if (action.member_id === this.member?.id) {
             return;
         }
-        let playerElement = this.#playerElements.get(action.player_id);
+        let memberElement = this.#memberElements.get(action.member_id);
         const position = new DOMPoint(...action.position);
 
         // Join
-        if (!playerElement) {
-            const player = {id: action.player_id, position: action.position};
-            this.#players.set(player.id, player);
-            playerElement = this.#spawnPlayer(player);
+        if (!memberElement) {
+            const member = {
+                id: action.member_id, player_id: "", player: {id: ""}, position: action.position
+            };
+            this.#members.set(member.id, member);
+            memberElement = this.#spawnMember(member);
         }
 
         // Leave
         if (position.x === -1) {
-            this.#players.delete(action.player_id);
-            playerElement.remove();
-            this.#playerElements.delete(action.player_id);
+            this.#members.delete(action.member_id);
+            memberElement.remove();
+            this.#memberElements.delete(action.member_id);
         }
 
-        playerElement.position = position;
+        memberElement.position = position;
     }
 
     #tick() {
@@ -904,20 +906,20 @@ export class GameElement extends HTMLElement {
         const t = now - this.#time;
         this.#time = now;
 
-        // Move player
-        if (this.#moveTarget && this.#playerElement) {
-            const direction = Vector.subtract(this.#moveTarget, this.#playerElement.position);
+        // Move member
+        if (this.#moveTarget && this.#memberElement) {
+            const direction = Vector.subtract(this.#moveTarget, this.#memberElement.position);
             const distance = Vector.abs(direction);
 
             if (distance > GameElement.#MOVE_DELTA) {
-                let {x, y} = this.#playerElement.position;
+                let {x, y} = this.#memberElement.position;
                 const currentIndex = parseInt(
-                    this.#getTileElement(this.#playerElement.position)?.dataset.index ?? ""
+                    this.#getTileElement(this.#memberElement.position)?.dataset.index ?? ""
                 );
-                const v = Vector.scale(direction, GameElement.#PLAYER_SPEED * t / distance);
+                const v = Vector.scale(direction, GameElement.#MEMBER_SPEED * t / distance);
 
                 let tileElement = this.#getTileElement(
-                    new DOMPoint(x + v.x, this.#playerElement.position.y)
+                    new DOMPoint(x + v.x, this.#memberElement.position.y)
                 );
                 if (tileElement) {
                     const i = parseInt(tileElement.dataset.index ?? "");
@@ -928,7 +930,7 @@ export class GameElement extends HTMLElement {
                 }
 
                 tileElement = this.#getTileElement(
-                    new DOMPoint(this.#playerElement.position.x, y + v.y)
+                    new DOMPoint(this.#memberElement.position.x, y + v.y)
                 );
                 if (tileElement) {
                     const i = parseInt(tileElement.dataset.index ?? "");
@@ -938,18 +940,18 @@ export class GameElement extends HTMLElement {
                     }
                 }
 
-                this.#playerElement.position = new DOMPoint(x, y);
+                this.#memberElement.position = new DOMPoint(x, y);
             }
         }
 
         // Find reachable tiles
-        if (this.#playerElement) {
-            const tile = this.#getTileElement(this.#playerElement.position);
+        if (this.#memberElement) {
+            const tile = this.#getTileElement(this.#memberElement.position);
             if (!tile) {
                 throw new Error("Assertion failed");
             }
             const reachableTileElements = this.#findTileElementsAround(
-                tile, GameElement.#PLAYER_REACH
+                tile, GameElement.#MEMBER_REACH
             );
             for (const tile of this.#reachableTileElements) {
                 if (!reachableTileElements.has(tile)) {
@@ -996,18 +998,18 @@ export class GameElement extends HTMLElement {
     }
 
     /**
-     * @param {Player} player
+     * @param {Member} member
      * @returns {EntityElement}
      */
-    #spawnPlayer(player) {
-        const playerElement = new EntityElement();
-        playerElement.classList.add("room-game-player");
-        playerElement.style.setProperty("--room-game-player-hover-delay", Math.random().toString());
-        playerElement.position = new DOMPoint(...player.position);
-        playerElement.image = GameElement.#PLAYER_IMAGE;
-        this.#tilesElement.after(playerElement);
-        this.#playerElements.set(player.id, playerElement);
-        return playerElement;
+    #spawnMember(member) {
+        const memberElement = new EntityElement();
+        memberElement.classList.add("room-game-member");
+        memberElement.style.setProperty("--room-game-member-hover-delay", Math.random().toString());
+        memberElement.position = new DOMPoint(...member.position);
+        memberElement.image = GameElement.#MEMBER_IMAGE;
+        this.#tilesElement.after(memberElement);
+        this.#memberElements.set(member.id, memberElement);
+        return memberElement;
     }
 
     /** @callback UpdateBlendCallback */
@@ -1027,12 +1029,12 @@ export class GameElement extends HTMLElement {
 customElements.define("room-game", GameElement);
 
 /**
- * Event for a performed player action.
+ * Event for an action performed by a room member.
  * @template {Action} T
  */
 class ActionEvent extends Event {
     /**
-     * Performed player action.
+     * Action performed by a room member.
      * @type {T}
      */
     action;
