@@ -165,9 +165,7 @@ async def _update_cookie(request: Request, response: StreamResponse) -> None:
     else:
         set_cookie('', max_age=0)
 
-# OQ should we rather have a client 404?
 @ui_routes.get('/')
-@ui_routes.get('/rooms/{id}')
 @ui_routes.get('/invites/{id}')
 async def _get_index(request: Request) -> Response:
     response = Response(text=cast(str, request.app['index_html']), content_type='text/html')

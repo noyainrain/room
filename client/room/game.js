@@ -1,6 +1,6 @@
 /** Room UI. */
 
-import {WindowElement, renderTileItem} from "core";
+import {WindowElement, request, renderTileItem} from "core";
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
@@ -468,12 +468,7 @@ export class GameElement extends HTMLElement {
     /** @type {?WebSocket} */
     #socket = null;
 
-    // OQ + or *
-    #router = new Router([
-        ["^/rooms/([^/]*)$", this.#setUpRoom.bind(this)],
-        ["^/invites/([^/]*)$", this.#setUpRoom.bind(this)],
-        ["^/$", this.#setUpPlayerRoom.bind(this)]
-    ]);
+    #router;
 
     constructor() {
         super();
@@ -545,28 +540,29 @@ export class GameElement extends HTMLElement {
         this.addEventListener("FailedAction", event => {
             throw new Error(/** @type {ActionEvent<FailedAction>} */ (event).action.message);
         });
+
+        this.#router = new Router([
+            ["^/invites/([^/]+)$", this.#initRoom.bind(this)],
+            ["^/$", this.#initPlayerRoom.bind(this)]
+        ]);
     }
 
     /** @param {string} id */
-    #setUpRoom(id) {
+    #initRoom(id) {
         this.#connect(id);
     }
 
-    async #setUpPlayerRoom() {
+    #initPlayerRoom = request(async () => {
         let roomID = localStorage.roomID ?? null;
         console.log("DEFAULT HANDLER", roomID);
         if (!roomID) {
             let room;
-            try {
-                const response = await fetch("/api/rooms", {method: "POST"});
-                room = await response.json();
-            } catch (TypeError) {
-                // TODO something
-            }
+            const response = await fetch("/api/rooms", {method: "POST"});
+            room = await response.json();
             roomID = localStorage.roomID = room.id;
         }
         this.#connect(roomID);
-    }
+    });
 
     connectedCallback() {
         let sceneBounds = new DOMRect();
@@ -833,7 +829,7 @@ export class GameElement extends HTMLElement {
         }
         this.#memberElement = this.#memberElements.get(action.member_id) ?? null;
         // location.hash = this.room.id;
-        history.replaceState(null, "", `/rooms/${this.room.id}${location.hash}`);
+        history.replaceState(null, "", `/invites/${this.room.id}${location.hash}`);
 
         // Start
         (async () => {

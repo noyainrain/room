@@ -3,6 +3,55 @@
 import {querySelector} from "util";
 
 /**
+ * @callback RequestCallback
+ * @param {...unknown} args
+ * @returns {void}
+ */
+
+/**
+ * TODO.
+ *
+ * @param {RequestCallback} func
+ */
+export function request(func) {
+    /** @param {unknown[]} args */
+    return async (...args) => {
+        try {
+            await func(...args);
+        } catch (e) {
+            if (e instanceof TypeError) {
+                const game = /** @type {import("./game.js").GameElement } */ (
+                    document.querySelector("room-game")
+                );
+                game.dialogWindow.open(
+                    "Offline",
+                    "Oops, you seem to be offline. Please check your connection and try again."
+                );
+                return;
+            }
+            throw e;
+        }
+    };
+}
+
+/**
+ * Decorator for a user request.
+ *
+ * If the request cannot be fulfilled because of a common web API error (:ref:`NotFoundError`,
+ * :ref:`PermissionError`, :ref:`RateLimitError`, :class:`micro.NetworkError`), the user is notified
+ * and :attr:`micro.core.request.ABORTED` is returned. A user request function is async.
+ *
+ * The decorated function may be async.
+ */
+
+/**
+ * Handle a common call error *e* with a default reaction.
+ *
+ * :class:`NetworkError`, ``NotFoundError``, ``PermissionError`` and `RateLimitError` are
+ * handled. Other errors are re-thrown.
+ */
+
+/**
  * Foreground window.
  *
  * @fires {Event#close}
