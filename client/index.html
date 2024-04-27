@@ -557,22 +557,45 @@
                     </form>
                 </room-blueprint-effects>
 
-                <room-window class="xroom-window-open">
-                    <h2>The Room of Programming</h2>
-                    <p><img src="" /><span>Descr descr</span></p>
-                    <a class="block" href="/rooms/abcd">
+                <room-window class="room-game-link">
+                    <style>
+                        .room-link-description:empty + .room-link-url:empty ~ a {
+                            border-top: unset;
+                        }
+
+                        .room-link-visit[href=""],
+                        .room-link-enter[href=""] {
+                            display: none;
+                        }
+                    </style>
+
+                    <header>
+                        <h2></h2>
+                        <button>
+                            <img class="icon" src="{{shell.url('images/close.png')}}" alt="Close" />
+                        </button>
+                    </header>
+                    <!--<p><img src="" /><span>Descr descr</span></p>-->
+                        <!--<span class="room-game-link-pre"></span><strong></strong>
+                        <span class="room-game-link-post">-->
+                    <p class="room-link-description"></p>
+                    <p class="room-link-url"></p>
+                    <a class="room-link-visit block" target="_blank">
+                        <img class="icon" src="{{shell.url('images/use-cause.png')}}" /> Visit
+                    </a>
+                    <a class="room-link-enter block">
                         <img class="icon" src="{{shell.url('images/use-cause.png')}}" /> Enter
                     </a>
                 </room-window>
 
-                <room-window class="xroom-window-open">
+                <!--<room-window class="xroom-window-open">
                     <h2>TJOP Discord</h2>
                     <p><img src="" /><span>Descr descr</span></p>
                     <p><small>discord.gg</small></p>
                     <a class="block" href="https://discord.gg/invite" target="_blank">
                         <img class="icon" src="{{shell.url('images/use-cause.png')}}" /> Open
                     </a>
-                </room-window>
+                </room-window>-->
 
                 <room-dialog>
                     <h2></h2>

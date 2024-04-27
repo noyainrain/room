@@ -94,3 +94,38 @@ export function renderTileItem(blueprint) {
     return li;
 }
 renderTileItem.template = querySelector(document, "#tile-item-template", HTMLTemplateElement);
+
+/**
+ * TODO.
+ * @param {string} url
+ * @returns {[string, string, string]}
+ */
+export function parseRoomURL(url) {
+    const parsed = new URL(url, location.origin);
+    const [, type, roomID, ...excess] = parsed.pathname.split("/");
+    console.log("SEGMENTS", type, roomID, excess);
+    if (!(type === "invites" && roomID && !excess.length)) {
+        throw TypeError(`Bad room url ${url}`);
+    }
+    return [type, roomID, parsed.hash];
+}
+
+/**
+ * TODO.
+ * @param {string} roomID
+ */
+export function makeRoomURL(roomID) {
+    return `${location.origin}/invites/${roomID}`;
+}
+
+//export function parseRoomURL(url) {
+//    // const segments = new URL(url).pathname.split("/");
+//    // console.log("SEGEMENTS", segments, segments.length);
+//    const parsed = new URL(url);
+//    const [_, prefix, roomID, ...excess] = parsed.pathname.split("/");
+//    console.log("SEGMENTS", _, prefix, roomID, excess);
+//    if (!(prefix === "invites" && roomID && !excess.length)) {
+//        throw TypeError(`Bad room url ${url}`);
+//    }
+//    return [prefix, roomID, parsed.hash];
+//}

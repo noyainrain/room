@@ -16,21 +16,23 @@
 from __future__ import annotations
 
 from asyncio import Queue, sleep
-from collections.abc import AsyncGenerator, Sequence
+from collections.abc import AsyncGenerator, Coroutine, Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
 import errno
 from logging import getLogger
 from os import PathLike
 from pathlib import Path
+import re
 from secrets import token_urlsafe
 from typing import Annotated, ClassVar, Literal, NoReturn, TypeVar, Union, cast
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field, field_serializer,
                       field_validator, model_validator)
 
 from . import context
-from .core import Player, PrivatePlayer
+from .core import Player, PrivatePlayer, parse_room_url
 from .util import open_image_data_url, randstr, timer
 
 A = TypeVar('A', bound='Action')
@@ -177,7 +179,7 @@ class Effect(BaseModel): # type: ignore[misc]
 
     type: str
 
-    async def apply(self, tile_index: int) -> None:
+    async def apply(self, tile_index: int) -> Effect:
         """Apply the effect to the tile at *tile_index*."""
         raise NotImplementedError()
 
@@ -190,18 +192,61 @@ class UseCause(Cause): # type: ignore[misc]
 # Use -> FollowLinkEffect
 #        Open, Access, Browse
 
-class FollowLinkEffect(Effect): # type: ignore[misc]
+class Link(BaseModel): # type: ignore[misc]
     """TODO."""
+    url: str
+    title: str
+    # later: description: str
+    # later: thumbnail
+
+class FollowLinkEffect(Effect): # type: ignore[misc]
+    """TODO.
+
+    .. attribute:: url
+
+       Relative URL is room URL and relative to /invites/current-room-id.
+    """
+
     # Open link to
     # a) website
     # b) room
     # c) window in the game
 
+    # Note: Design decision here are influenced by having room://{server}/{type}/{id}#{indoor},
+    # where type is optional "invite"; so we could share rooms with native (non-web) clients also
+
     type: Literal['FollowLinkEffect'] = 'FollowLinkEffect'
     url: str
+    link: Link | None = None
 
-    async def apply(self, tile_index: int) -> None:
-        pass
+    @field_validator('url')
+    @classmethod
+    def _check_url(cls, url: str) -> str:
+        """TODO."""
+        components = urlsplit(url)
+        # Normalize scheme-relative URLs
+        if not components.scheme and components.netloc:
+            print('NORMALIZING ABSOLUTE URL', url)
+            return urlunsplit(
+                ('https', components.netloc, components.path, components.query,
+                 components.fragment))
+        return url
+
+    async def apply(self, tile_index: int) -> FollowLinkEffect:
+        print('Link-Effect', self.url)
+        if urlsplit(self.url).scheme:
+            # later: fetch metadata
+            link = Link(url=self.url, title='Link')
+        else:
+            resolved = urljoin(f'/invites/{context.room.get().id}', self.url)
+            print('RESOLVED RELATIVE', self.url, '->', resolved)
+            try:
+                _, room_id, _ = parse_room_url(resolved)
+                # later: get room preview
+                link = Link(url=resolved, title=f'Room #{room_id}')
+            except ValueError:
+                link = Link(url=resolved, title='Room')
+        return self.model_copy(update={'link': link}) # type: ignore[misc]
 
 class TransformTileEffect(Effect): # type: ignore[misc]
     """Effect of transforming a tile into another.
@@ -221,8 +266,9 @@ class TransformTileEffect(Effect): # type: ignore[misc]
         """Target form."""
         return context.room.get().blueprints[self.blueprint_id]
 
-    async def apply(self, tile_index: int) -> None:
+    async def apply(self, tile_index: int) -> TransformTileEffect:
         context.room.get().tile_ids[tile_index] = self.blueprint_id
+        return self
 
 AnyCause = Annotated[Union[UseCause], Field(discriminator='type')]
 AnyEffect = Annotated[Union[TransformTileEffect, FollowLinkEffect], Field(discriminator='type')]
@@ -293,8 +339,9 @@ class Tile(BaseModel): # type: ignore[misc]
         """Apply the effects of a *cause* to the tile at *tile_index*."""
         # Note that if there is a crash applying an effect, subsequent effects will not be applied
         effects = self.effects.get(cause) or []
-        for effect in effects:
-            await effect.apply(tile_index)
+        #for effect in effects:
+        #    await effect.apply(tile_index)
+        effects = [await effect.apply(tile_index) for effect in effects]
         return effects
 
 class OfflineRoom(BaseModel): # type: ignore[misc]
@@ -541,7 +588,7 @@ DEFAULT_BLUEPRINTS = {
             'nwEPYAQpCA0NZVi9ejVWZRgK0BWDFSBrJagA3R64Ceg6YXycCmAmYbgB3QoAnmIiUcgpwTgAAAAASUVORK5CYI'
             'I=',
         wall=False,
-        effects={}
+        effects={UseCause(): [FollowLinkEffect(url='/invites/noyeamwtdewxulsl')]}
     ),
     'floor': Tile(
         id='floor',
@@ -558,7 +605,7 @@ DEFAULT_BLUEPRINTS = {
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAALElEQVQYV2MMDQ39'
             'z4AHMK4KZcCvgGgTVjOEAuFqIITQMAC3gmgF6O6l3JEA6qkZ+Y/de7cAAAAASUVORK5CYII=',
         wall=True,
-        effects={}
+        effects={UseCause(): [FollowLinkEffect(url='/invit')]}
     ),
     'wall-horizontal-left': Tile(
         id='wall-horizontal-left',

@@ -25,9 +25,16 @@
  */
 
 /**
+ * @typedef Link
+ * @property {string} url
+ * @property {string} title
+ */
+
+/**
  * @typedef FollowLinkEffect
  * @property {"FollowLinkEffect"} type
  * @property {string} url
+ * @property {?Link} link
  */
 
 /**

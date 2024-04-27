@@ -1,6 +1,6 @@
 /** Room UI. */
 
-import {WindowElement, request, renderTileItem} from "core";
+import {WindowElement, parseRoomURL, makeRoomURL, request, renderTileItem} from "core";
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
@@ -857,13 +857,79 @@ export class GameElement extends HTMLElement {
         this.#updateTileElement(action.tile_index);
     }
 
+    /** @param {FollowLinkEffect} effect */
+    #applyFollowLinkEffect(effect) {
+        if (!effect.link) {
+            throw new AssertionError();
+        }
+
+        // later
+        // if (effect.link.url.startsWith("/")) {
+        //     try {
+        //         const [, roomID, fragment] = parseRoomURL(effect.link.url);
+        //         if (roomID === this.room?.id) {
+        //             // (should trigger hash navigation)
+        //             location.hash = fragment;
+        //         }
+        //     } catch (e) {
+        //         if (e instanceof TypeError) {
+        //             // Bad room URL handled by link window...
+        //         } else {
+        //             throw e;
+        //         }
+        //     }
+        // }
+
+        // TODO move to own window
+        const element = querySelector(this, ".room-game-link", WindowElement);
+        const button = querySelector(this, ".room-game-link button");
+        button.addEventListener("click", () => element.close());
+        const h2 = querySelector(element, "h2");
+        //const pre = querySelector(element, ".room-game-link-pre");
+        const descriptionP = querySelector(element, ".room-link-description");
+        const urlP = querySelector(element, ".room-link-url");
+        //const post = querySelector(element, ".room-game-link-post");
+        const visitA = querySelector(element, ".room-link-visit", HTMLAnchorElement);
+        const enterA = querySelector(element, ".room-link-enter", HTMLAnchorElement);
+        // const aLabel = querySelector(a, "span");
+        // console.log("Do you want to visit this link", effect.url, effect);
+
+        const link = effect.link;
+
+        h2.textContent = effect.link.title;
+        descriptionP.replaceChildren();
+        urlP.replaceChildren();
+        visitA.href = "";
+        enterA.href = "";
+
+        if (effect.link.url.startsWith("/")) {
+            try {
+                const [, roomID] = parseRoomURL(link.url);
+                enterA.href = makeRoomURL(roomID);
+            } catch (e) {
+                if (e instanceof TypeError) {
+                    h2.textContent = "Dead End";
+                    descriptionP.textContent = "The link leads nowhere.";
+                    urlP.textContent = effect.link.url;
+                } else {
+                    throw e;
+                }
+            }
+        } else {
+            urlP.textContent = effect.link.url;
+            visitA.href = effect.link.url;
+        }
+
+        element.open();
+    }
+
     /** @param {UseAction} action */
     #use(action) {
         for (const effect of action.effects) {
             switch (effect.type) {
             case "FollowLinkEffect":
                 // TODO
-                console.log("Do you want to visit this link", effect.url);
+                this.#applyFollowLinkEffect(effect);
                 break;
             case "TransformTileEffect":
                 // eslint-disable-next-line no-case-declarations

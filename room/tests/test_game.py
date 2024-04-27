@@ -5,8 +5,8 @@ from tempfile import TemporaryDirectory
 from unittest import IsolatedAsyncioTestCase
 
 from room import context
-from room.game import (DEFAULT_BLUEPRINTS, Game, Member, OnlineRoom, Tile, TransformTileEffect,
-                       UseCause)
+from room.game import (DEFAULT_BLUEPRINTS, FollowLinkEffect, Game, Link, Member, OnlineRoom, Tile,
+                       TransformTileEffect, UseCause)
 
 class TestCase(IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
@@ -27,6 +27,36 @@ class MemberTest(TestCase):
         action = Member.MoveMemberAction(member_id=self.member.id, position=(1, 2))
         await action.perform()
         self.assertEqual(self.member.position, (1, 2))
+
+class FollowLinkEffectTest(TestCase):
+    async def test_apply(self) -> None:
+        # effect = FollowLinkEffect(url='/foo/../bar') # relative
+        # effect = FollowLinkEffect(url='https:/foo/../bar') # relative (same proto)
+        # effect = FollowLinkEffect(url='ftp:/foo/../bar') # absolute (different proto)
+        # effect = FollowLinkEffect(url='//example.org/foo/../bar') # absolute
+        effect = FollowLinkEffect(url='https://example.org/')
+        effect = await effect.apply(0)
+        self.assertEqual(effect.link, Link(url=effect.url, title='Link'))
+
+    async def test_apply_room_url(self) -> None:
+        effect = FollowLinkEffect(url='/invites/meow')
+        effect = await effect.apply(0)
+        assert effect.link
+        self.assertEqual(effect.link, Link(url=effect.url, title='Room #meow'))
+
+    # OQ better name
+    async def test_apply_relative_room_url(self) -> None:
+        effect = FollowLinkEffect(url='')
+        effect = await effect.apply(0)
+        assert effect.link
+        self.assertEqual(effect.link,
+                         Link(url=f'/invites/{self.room.id}', title=f'Room #{self.room.id}'))
+
+    async def test_apply_bad_room_url(self) -> None:
+        effect = FollowLinkEffect(url='/foo')
+        effect = await effect.apply(0)
+        assert effect.link
+        self.assertEqual(effect.link.title, 'Room')
 
 class TransformTileEffectTest(TestCase):
     async def test_apply(self) -> None:
