@@ -132,6 +132,11 @@ class EffectListElement extends HTMLElement {
                 event.currentTarget.blur();
             }
         );
+        querySelector(this, ".room-effect-list-follow-link-effect").addEventListener(
+            "click", event => {
+                this.#addItem({type: "FollowLinkEffect", url: "", link: null});
+            }
+        );
         this.#updateInput();
     }
 
@@ -174,7 +179,10 @@ class EffectListElement extends HTMLElement {
      */
     #renderEffect(effect) {
         /** @type {Object<string, new() => EffectElement>} */
-        const elems = {TransformTileEffect: TransformTileEffectElement};
+        const elems = {
+            TransformTileEffect: TransformTileEffectElement,
+            FollowLinkEffect: FollowLinkEffectElement
+        };
         const EffectElement = elems[effect.type];
         if (!EffectElement) {
             // TODO
@@ -310,3 +318,29 @@ class TransformTileEffectElement extends EffectElement {
     }
 }
 customElements.define("room-transform-tile-effect", TransformTileEffectElement);
+
+class FollowLinkEffectElement extends EffectElement {
+    #input;
+
+    constructor() {
+        super();
+        this.append(
+            document.importNode(
+                querySelector(
+                    document, "#room-follow-link-effect-template", HTMLTemplateElement
+                ).content, true
+            )
+        );
+        this.#input = querySelector(this, "input", HTMLInputElement);
+    }
+
+    /** @type {FollowLinkEffect} */
+    get effect() {
+        return {type: "FollowLinkEffect", url: this.#input.value, link: null};
+    }
+
+    set effect(value) {
+        this.#input.value = value.url;
+    }
+}
+customElements.define("room-follow-link-effect", FollowLinkEffectElement);

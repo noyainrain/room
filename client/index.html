@@ -512,6 +512,11 @@
                                                     src="{{shell.url('images/transform-tile-effect.png')}}"
                                                 /> Transform
                                             </li>
+                                            <li class="room-effect-list-follow-link-effect"
+                                                tabindex="0"
+                                            >
+                                                Follow Link
+                                            </li>
                                         </ul>
                                     </li>
                                 </ul>
@@ -659,6 +664,24 @@
             <div class="room-transform-tile-effect-blueprint contextual">
                 <p tabindex="0"><img class="tile" /></p>
                 <ul></ul>
+            </div>
+        </template>
+
+        <template id="room-follow-link-effect-template">
+            <style>
+                room-follow-link-effect {
+                    display: block;
+                }
+            </style>
+
+            <room-effect-header>
+                <img class="icon" src="{{shell.url('images/use.png')}}" /> Follow Link
+            </room-effect-header>
+            <div>
+                <label>
+                    <input />
+                    <small>Link</small>
+                </label>
             </div>
         </template>
     </body>
