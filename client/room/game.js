@@ -1,6 +1,6 @@
 /** Room UI. */
 
-import {WindowElement, parseRoomURL, makeRoomURL, request, renderTileItem} from "core";
+import {WindowElement, request, renderTileItem} from "core";
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
@@ -864,6 +864,14 @@ export class GameElement extends HTMLElement {
         }
 
         // later
+        // if (effect.link.type === "application/vnd.room+json") {
+        //     const url = new URL(effect.link.url, location.origin);
+        //     if (url.pathname === location.pathname) {
+        //         // (should trigger hash navigation)
+        //         location.hash = url.hash;
+        //     }
+        // }
+
         // if (effect.link.url.startsWith("/")) {
         //     try {
         //         const [, roomID, fragment] = parseRoomURL(effect.link.url);
@@ -902,23 +910,30 @@ export class GameElement extends HTMLElement {
         visitA.href = "";
         enterA.href = "";
 
-        if (effect.link.url.startsWith("/")) {
-            try {
-                const [, roomID] = parseRoomURL(link.url);
-                enterA.href = makeRoomURL(roomID);
-            } catch (e) {
-                if (e instanceof TypeError) {
-                    h2.textContent = "Dead End";
-                    descriptionP.textContent = "The link leads nowhere.";
-                    urlP.textContent = effect.link.url;
-                } else {
-                    throw e;
-                }
-            }
+        if (effect.link.type === "application/vnd.room+json") {
+            enterA.href = effect.link.url;
         } else {
             urlP.textContent = effect.link.url;
             visitA.href = effect.link.url;
         }
+
+        //if (effect.link.url.startsWith("/")) {
+        //    try {
+        //        const [, roomID] = parseRoomURL(link.url);
+        //        enterA.href = makeRoomURL(roomID);
+        //    } catch (e) {
+        //        if (e instanceof TypeError) {
+        //            h2.textContent = "Dead End";
+        //            descriptionP.textContent = "The link leads nowhere.";
+        //            urlP.textContent = effect.link.url;
+        //        } else {
+        //            throw e;
+        //        }
+        //    }
+        //} else {
+        //    urlP.textContent = effect.link.url;
+        //    visitA.href = effect.link.url;
+        //}
 
         element.open();
     }

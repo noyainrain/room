@@ -36,27 +36,39 @@ class FollowLinkEffectTest(TestCase):
         # effect = FollowLinkEffect(url='//example.org/foo/../bar') # absolute
         effect = FollowLinkEffect(url='https://example.org/')
         effect = await effect.apply(0)
-        self.assertEqual(effect.link, Link(url=effect.url, title='Link'))
+        self.assertEqual(effect.link,
+                         Link(url=effect.url, type='application/octet-stream', title='Link'))
 
-    async def test_apply_room_url(self) -> None:
-        effect = FollowLinkEffect(url='/invites/meow')
+    async def test_apply_relative_url(self) -> None:
+        effect = FollowLinkEffect(url=f'/invites/{self.room.id}')
         effect = await effect.apply(0)
         assert effect.link
-        self.assertEqual(effect.link, Link(url=effect.url, title='Room #meow'))
+        self.assertEqual(
+            effect.link,
+            Link(url=effect.url, type=OnlineRoom.MEDIA_TYPE, title=f'Room #{self.room.id}'))
 
     # OQ better name
     async def test_apply_relative_room_url(self) -> None:
         effect = FollowLinkEffect(url='')
         effect = await effect.apply(0)
         assert effect.link
-        self.assertEqual(effect.link,
-                         Link(url=f'/invites/{self.room.id}', title=f'Room #{self.room.id}'))
+        self.assertEqual(
+            effect.link,
+            # Link(url=f'/invites/{self.room.id}', title=f'Room #{self.room.id}'))
+            Link(url=effect.url, type=OnlineRoom.MEDIA_TYPE, title=f'Room #{self.room.id}'))
 
-    async def test_apply_bad_room_url(self) -> None:
+    #async def test_apply_no_room(self) -> None:
+    #    effect = FollowLinkEffect(url='foo')
+    #    effect = await effect.apply(0)
+    #    self.assertEqual(effect.link,
+    #                     Link(url=effect.url, type='application/octet-stream', title='Link'))
+
+    async def test_apply_no_relative_resource(self) -> None:
         effect = FollowLinkEffect(url='/foo')
         effect = await effect.apply(0)
         assert effect.link
-        self.assertEqual(effect.link.title, 'Room')
+        self.assertEqual(effect.link,
+                         Link(url=effect.url, type='application/octet-stream', title='Link'))
 
 class TransformTileEffectTest(TestCase):
     async def test_apply(self) -> None:

@@ -27,6 +27,7 @@
 /**
  * @typedef Link
  * @property {string} url
+ * @property {string} type
  * @property {string} title
  */
 

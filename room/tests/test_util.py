@@ -7,7 +7,7 @@ from textwrap import dedent
 from time import sleep
 from unittest import IsolatedAsyncioTestCase, TestCase
 
-from room.util import cancel, randstr, template, timer
+from room.util import Router, cancel, randstr, template, timer
 
 class RandstrTest(TestCase):
     def test(self) -> None:
@@ -53,3 +53,26 @@ class TemplateTest(TestCase):
                 The cat said *Meow!* for {len(message):.1f} s.
                 """
             ))
+
+class RouterTest(TestCase):
+    def setUp(self) -> None:
+        self.router: Router[str] = Router({
+            '^/cats/([^/]+)$': self.query_cat,
+            'cats': self.query_void
+        })
+
+    @staticmethod
+    def query_cat(cat_id: str | None = None, *_: str | None) -> str:
+        return f'Cat #{cat_id}'
+
+    @staticmethod
+    def query_void(*_: str | None) -> str:
+        raise LookupError()
+
+    def test_route(self) -> None:
+        cat = self.router.route('/cats/frank')
+        self.assertEqual(cat, 'Cat #frank')
+
+    def test_route_no_result(self) -> None:
+        with self.assertRaisesRegex(LookupError, 'foo'):
+            self.router.route('foo')

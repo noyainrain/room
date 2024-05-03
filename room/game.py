@@ -32,8 +32,8 @@ from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field
                       field_validator, model_validator)
 
 from . import context
-from .core import Player, PrivatePlayer, parse_room_url
-from .util import open_image_data_url, randstr, timer
+from .core import Player, PrivatePlayer
+from .util import Router, open_image_data_url, randstr, timer
 
 A = TypeVar('A', bound='Action')
 
@@ -193,8 +193,15 @@ class UseCause(Cause): # type: ignore[misc]
 #        Open, Access, Browse
 
 class Link(BaseModel): # type: ignore[misc]
-    """TODO."""
+    """...
+
+    .. attribute:: type
+
+       Media type.
+    """
+
     url: str
+    type: str
     title: str
     # later: description: str
     # later: thumbnail
@@ -236,17 +243,35 @@ class FollowLinkEffect(Effect): # type: ignore[misc]
         print('Link-Effect', self.url)
         if urlsplit(self.url).scheme:
             # later: fetch metadata
-            link = Link(url=self.url, title='Link')
+            link = Link(url=self.url, type='application/octet-stream', title='Link')
         else:
-            resolved = urljoin(f'/invites/{context.room.get().id}', self.url)
-            print('RESOLVED RELATIVE', self.url, '->', resolved)
+            router: Router[Link] = Router({'/invites/([^/]+)': self._room_link})
             try:
-                _, room_id, _ = parse_room_url(resolved)
-                # later: get room preview
-                link = Link(url=resolved, title=f'Room #{room_id}')
-            except ValueError:
-                link = Link(url=resolved, title='Room')
+                link = router.route(urljoin(f'/invites/{context.room.get().id}', self.url))
+            except LookupError:
+                link = Link(url=self.url, type='application/octet-stream', title='Link')
+
         return self.model_copy(update={'link': link}) # type: ignore[misc]
+
+        #if urlsplit(self.url).scheme:
+        #    # later: fetch metadata
+        #    link = Link(url=self.url, title='Link')
+        #else:
+        #    resolved = urljoin(f'/invites/{context.room.get().id}', self.url)
+        #    print('RESOLVED RELATIVE', self.url, '->', resolved)
+        #    try:
+        #        _, room_id, _ = parse_room_url(resolved)
+        #        # later: get room preview
+        #        link = Link(url=resolved, title=f'Room #{room_id}')
+        #    except ValueError:
+        #        link = Link(url=resolved, title='Room')
+
+    def _room_link(self, room_id: str | None = None, *_: str | None) -> Link:
+        assert room_id
+        print('ROOM LINK', room_id)
+        room = context.game.get().get_room(room_id)
+        # later: use room meta data
+        return Link(url=self.url, type=room.MEDIA_TYPE, title=f'Room #{room_id}')
 
 class TransformTileEffect(Effect): # type: ignore[misc]
     """Effect of transforming a tile into another.
@@ -374,6 +399,7 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
 
     WIDTH: ClassVar[int] = 16
     HEIGHT: ClassVar[int] = 9
+    MEDIA_TYPE: ClassVar[str] = 'application/vnd.room+json'
 
     id: str
     tile_ids: Annotated[list[str], Field(min_length=WIDTH * HEIGHT, max_length=WIDTH * HEIGHT)]
@@ -747,6 +773,10 @@ class Game:
         If authentication fails, a :exc:`LookupError` is raised.
         """
         return self._tokens[token]
+
+    def get_room(self, room_id: str) -> OnlineRoom:
+        """..."""
+        return self.rooms[room_id]
 
     def create_room(self) -> OnlineRoom:
         """Create a new room."""

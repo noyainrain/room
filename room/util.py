@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from asyncio import CancelledError, Task
 from base64 import b64decode
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from functools import cache
 from importlib import resources
@@ -12,16 +12,18 @@ from io import BytesIO
 import json
 import random
 import re
-from re import Match
+from re import Pattern, Match
 from string import ascii_lowercase
 from textwrap import dedent
 from time import perf_counter
-from typing import NamedTuple, Protocol, cast
+from typing import Generic, NamedTuple, Protocol, TypeVar, cast
 
 from aiohttp import WSCloseCode, WSMsgType
 from PIL import UnidentifiedImageError
 import PIL.Image
 from PIL.Image import Image
+
+T_co = TypeVar('T_co', covariant=True)
 
 def randstr(length: int = 16, *, charset: str = ascii_lowercase) -> str:
     """Generate a random string with the given *length*.
@@ -107,6 +109,35 @@ def template(package: str, resource: str, *, double_braces: bool = False) -> Tem
         ).format(text),
         g)
     return cast(Template, g['t'])
+
+class QueryFunc(Protocol[T_co]):
+    """Query with *args*.
+
+    If there is no result, a :exc:`LookupError` is raised.
+    """
+
+    def __call__(self, *args: str | None) -> T_co: ...
+
+class Router(Generic[T_co]):
+    """Router forwarding queries to appropriate query functions.
+
+    .. attribute:: routes
+
+       Routing table, defining the query function to call for paths matching a pattern.
+    """
+
+    def __init__(self, routes: Mapping[Pattern[str] | str, QueryFunc[T_co]]) -> None:
+        self.routes = {re.compile(pattern): query for pattern, query in routes.items()}
+
+    def route(self, path: str) -> T_co:
+        """Query a *path*.
+
+        If there is no result, a :exc:`LookupError` is raised.
+        """
+        for pattern, query in self.routes.items():
+            if match := pattern.search(path):
+                return query(*match.groups()) # type: ignore[misc]
+        raise LookupError(path)
 
 class WSMessage(NamedTuple):
     """Websocket message type annotations."""

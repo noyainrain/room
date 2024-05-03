@@ -95,20 +95,20 @@ export function renderTileItem(blueprint) {
 }
 renderTileItem.template = querySelector(document, "#tile-item-template", HTMLTemplateElement);
 
-/**
+/*
  * TODO.
  * @param {string} url
  * @returns {[string, string, string]}
  */
-export function parseRoomURL(url) {
-    const parsed = new URL(url, location.origin);
-    const [, type, roomID, ...excess] = parsed.pathname.split("/");
-    console.log("SEGMENTS", type, roomID, excess);
-    if (!(type === "invites" && roomID && !excess.length)) {
-        throw TypeError(`Bad room url ${url}`);
-    }
-    return [type, roomID, parsed.hash];
-}
+//export function parseRoomURL(url) {
+//    const parsed = new URL(url, location.origin);
+//    const [, type, roomID, ...excess] = parsed.pathname.split("/");
+//    console.log("SEGMENTS", type, roomID, excess);
+//    if (!(type === "invites" && roomID && !excess.length)) {
+//        throw TypeError(`Bad room url ${url}`);
+//    }
+//    return [type, roomID, parsed.hash];
+//}
 
 /**
  * TODO.
