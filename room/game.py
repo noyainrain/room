@@ -306,10 +306,15 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
     .. attribute:: HEIGHT
 
        Room height.
+
+    .. attribute:: MEDIA_TYPE
+
+       Room file media type.
     """
 
     WIDTH: ClassVar[int] = 16
     HEIGHT: ClassVar[int] = 9
+    MEDIA_TYPE: ClassVar[str] = 'application/vnd.room+json'
 
     id: str
     tile_ids: Annotated[list[str], Field(min_length=WIDTH * HEIGHT, max_length=WIDTH * HEIGHT)]

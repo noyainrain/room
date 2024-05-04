@@ -125,6 +125,49 @@ export async function emitParticle(element, start, end) {
     );
 }
 
+/**
+ * Query with arguments.
+ *
+ * If there is no result, `undefined` is returned.
+ * @template T
+ * @callback QueryCallback
+ * @param {...?string} args - Query arguments
+ * @returns {T | undefined}
+ */
+
+/**
+ * Router forwarding queries to appropriate query functions.
+ * @template T
+ */
+export class Router {
+    /**
+     * Routing table, defining the query function to call for paths matching a pattern.
+     * @type {[RegExp, QueryCallback<Promise<T>> | QueryCallback<T>][]}
+     */
+    routes;
+
+    /** @param {[RegExp | string, QueryCallback<Promise<T>> | QueryCallback<T>][]} routes */
+    constructor(routes) {
+        this.routes = routes.map(([pattern, query]) => [new RegExp(pattern), query]);
+    }
+
+    /**
+     * Query a path.
+     *
+     * If there is no result, `undefined` is returned.
+     * @param {string} path - Query path
+     * @returns {Promise<T | undefined>}
+     */
+    async route(path) {
+        for (const [pattern, query] of this.routes) {
+            const match = pattern.exec(path);
+            if (match) {
+                return await query(...match.slice(1).map(arg => arg ?? null));
+            }
+        }
+    }
+}
+
 /** Vector operations. */
 export class Vector {
     /**

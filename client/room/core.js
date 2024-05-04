@@ -2,6 +2,36 @@
 
 import {querySelector} from "util";
 
+// Work around TypeScript not supporting tuple for rest @param (see
+// https://github.com/microsoft/TypeScript/issues/49801)
+/**
+ * Decorator for a player request.
+ *
+ * If there is a general web API error ({@link TypeError}), the player is notified.
+ * @template {unknown[]} P
+ * @param {(...args: P) => Promise<unknown>} func
+ * @returns {(...args: P) => Promise<void>}
+ */
+export function request(func) {
+    return async (...args) => {
+        try {
+            await func(...args);
+        } catch (e) {
+            if (e instanceof TypeError) {
+                const game = /** @type {import("game").GameElement } */ (
+                    document.querySelector("room-game")
+                );
+                game.dialogWindow.open(
+                    "Offline",
+                    "Oops, Room is offline. Please check your network connection and try again."
+                );
+            } else {
+                throw e;
+            }
+        }
+    };
+}
+
 /**
  * Foreground window.
  *

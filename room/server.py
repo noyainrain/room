@@ -1,0 +1,61 @@
+"""Web server."""
+
+from collections.abc import Sequence
+from http import HTTPStatus
+from typing import Generic, TypeVar
+
+from aiohttp.web import HTTPNotFound, Request, Response, RouteTableDef
+from pydantic import BaseModel, TypeAdapter
+
+from . import context
+from .core import Player
+
+_T = TypeVar('_T')
+
+api_routes = RouteTableDef()
+_PlayerModel = TypeAdapter(Player)
+
+class _Collection(BaseModel, Generic[_T]): # type: ignore[misc]
+    items: Sequence[_T]
+
+def model_response(model: BaseModel, *, status: int = 200,
+                   content_type: str = 'application/json') -> Response:
+    """Generate a JSON web response from a *model*."""
+    return Response(text=model.model_dump_json(), status=status, content_type=content_type)
+
+@api_routes.get('/players/{id}')
+async def _get_player(request: Request) -> Response:
+    try:
+        player = context.game.get().players[request.match_info['id']]
+    except KeyError as e:
+        raise HTTPNotFound(text='{}', content_type='application/json') from e
+    return Response(body=_PlayerModel.dump_json(player), content_type='application/json')
+
+@api_routes.post('/rooms')
+async def _post_rooms(_: Request) -> Response:
+    room = context.game.get().create_room()
+    return model_response(room, status=HTTPStatus.CREATED, content_type=room.MEDIA_TYPE)
+
+@api_routes.get('/rooms/{id}')
+async def _get_room(request: Request) -> Response:
+    try:
+        room = context.game.get().rooms[request.match_info['id']]
+    except KeyError as e:
+        raise HTTPNotFound(text='{}', content_type='application/json') from e
+    return model_response(room, content_type=room.MEDIA_TYPE)
+
+@api_routes.get('/rooms/{id}/members')
+async def _get_room_members(request: Request) -> Response:
+    try:
+        room = context.game.get().rooms[request.match_info['id']]
+    except KeyError as e:
+        raise HTTPNotFound(text='{}', content_type='application/json') from e
+    return model_response(_Collection(items=room.with_members().members))
+
+@api_routes.get('/members/{id}')
+async def _get_member(request: Request) -> Response:
+    try:
+        member = context.game.get().members[request.match_info['id']]
+    except KeyError as e:
+        raise HTTPNotFound(text='{}', content_type='application/json') from e
+    return model_response(member.with_player())

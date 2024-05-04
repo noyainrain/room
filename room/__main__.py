@@ -25,6 +25,7 @@ from pydantic import StringConstraints, TypeAdapter, ValidationError
 
 from . import context
 from .game import FailedAction, Game, Member, OnlineRoom
+from .server import api_routes
 from .util import WSMessage, cancel, template, timer
 
 _NonblankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -34,7 +35,6 @@ _AnyAction = Union[OnlineRoom.PlaceTileAction, OnlineRoom.UseAction,
 _CLOSE_CODE_UNAUTHORIZED = 4001
 _CLOSE_CODE_UNKNOWN_ROOM = 4004
 
-api_routes = RouteTableDef()
 ui_routes = RouteTableDef()
 
 _ErrorModel = TypeAdapter(_NonblankStr)
@@ -55,8 +55,7 @@ class Shell:
         """Generate a versioned URL for the file at *path*."""
         return str(self.static.url_for(filename=path, append_version=True))
 
-@api_routes.get('')
-@api_routes.get('/{id}')
+@api_routes.get('/rooms/{id}/actions')
 async def _rooms(request: Request) -> WebSocketResponse:
     logger = getLogger(__name__)
     websocket = WebSocketResponse()
@@ -65,15 +64,12 @@ async def _rooms(request: Request) -> WebSocketResponse:
     websockets.add(websocket)
 
     game = context.game.get()
-    room_id = request.match_info.get('id')
-    if not room_id:
-        room = game.create_room()
-    else:
-        try:
-            room = game.rooms[room_id]
-        except KeyError:
-            await websocket.close(code=_CLOSE_CODE_UNKNOWN_ROOM)
-            return websocket
+    room_id = request.match_info['id']
+    try:
+        room = game.rooms[room_id]
+    except KeyError:
+        await websocket.close(code=_CLOSE_CODE_UNKNOWN_ROOM)
+        return websocket
     context.room.set(room)
 
     async with room.enter() as member:
@@ -170,6 +166,7 @@ async def _update_cookie(request: Request, response: StreamResponse) -> None:
         set_cookie('', max_age=0)
 
 @ui_routes.get('/')
+@ui_routes.get('/invites/{id}')
 async def _get_index(request: Request) -> Response:
     response = Response(text=cast(str, request.app['index_html']), content_type='text/html')
     response.enable_compression()
@@ -246,7 +243,7 @@ async def main() -> int:
             app.add_routes(ui_routes)
             static = app.router.add_static('/static', client_path)
             assert isinstance(static, StaticResource)
-            app.add_subapp('/rooms', api)
+            app.add_subapp('/api', api)
             t = template(f'{__package__}.res', 'client/index.html', double_braces=True)
             app['index_html'] = t(shell=Shell(static), url=url)
 
