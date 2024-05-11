@@ -573,6 +573,25 @@
             <li tabindex="0"><img class="tile" /></li>
         </template>
 
+        <template id="room-cause-template">
+            <room-effect-header>
+                <img class="icon" src="{{shell.url('images/unknown.png')}}" alt="" /> External Cause
+            </room-effect-header>
+        </template>
+
+        <template id="room-effect-template">
+            <style>
+                room-effect {
+                    display: block;
+                }
+            </style>
+
+            <room-effect-header>
+                <img class="icon" src="{{shell.url('images/unknown.png')}}" alt="" /> External
+                Effect
+            </room-effect-header>
+        </template>
+
         <template id="room-effect-header-template">
             <style>
                 @import "{{shell.url('room.css')}}";
@@ -596,7 +615,7 @@
 
         <template id="room-use-cause-template">
             <room-effect-header>
-                <img class="icon" src="{{shell.url('images/use-cause.png')}}" /> Use
+                <img class="icon" src="{{shell.url('images/use-cause.png')}}" alt="" /> Use
             </room-effect-header>
         </template>
 

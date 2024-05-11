@@ -19,14 +19,24 @@
  */
 
 /**
+ * @typedef OtherCause
+ * @property {"*"} type
+ */
+
+/**
  * @typedef TransformTileEffect
  * @property {"TransformTileEffect"} type
  * @property {string} blueprint_id
  */
 
-/** @typedef {UseCause} Cause */
+/**
+ * @typedef OtherEffect
+ * @property {"*"} type;
+ */
 
-/** @typedef {TransformTileEffect} Effect */
+/** @typedef {UseCause | OtherCause} Cause */
+
+/** @typedef {TransformTileEffect | OtherEffect} Effect */
 
 /**
  * @typedef Tile

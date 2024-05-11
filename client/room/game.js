@@ -4,7 +4,7 @@ import {WindowElement, renderTileItem, request} from "core";
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.4.0";
+const VERSION = "0.4.1";
 
 /**
  * Player inventory window.
@@ -448,6 +448,13 @@ export class GameElement extends HTMLElement {
     #time = performance.now() / 1000;
     /** @type {?DOMPoint} */
     #moveTarget = null;
+    /**
+     * @callback ApplyEffectCallback
+     * @param {Effect} effect
+     * @param {number} tileIndex
+     * @type {Object<string, ApplyEffectCallback>}
+     */
+    #effects = {TransformTileEffect: this.#applyTransformTileEffect.bind(this)};
 
     #tilesElement = querySelector(this, ".room-game-tiles");
     #tileTemplate = querySelector(this, ".room-game-tile-template", HTMLTemplateElement);
@@ -863,17 +870,10 @@ export class GameElement extends HTMLElement {
     /** @param {UseAction} action */
     #use(action) {
         for (const effect of action.effects) {
-            switch (effect.type) {
-            case "TransformTileEffect":
-                // eslint-disable-next-line no-case-declarations
-                const tile = this.blueprints.get(effect.blueprint_id);
-                if (!tile) {
-                    throw new Error("Assertion failed");
-                }
-                this.#tiles[action.tile_index] = tile;
-                this.#updateTileElement(action.tile_index);
-                break;
-            default:
+            const apply = this.#effects[effect.type];
+            if (apply) {
+                apply(effect, action.tile_index);
+            } else {
                 console.warn("Unknown effect %s", effect.type);
             }
         }
@@ -922,6 +922,22 @@ export class GameElement extends HTMLElement {
         }
 
         memberElement.position = position;
+    }
+
+    /**
+     * @param {Effect} effect
+     * @param {number} tileIndex
+     */
+    #applyTransformTileEffect(effect, tileIndex) {
+        if (effect.type !== "TransformTileEffect") {
+            throw new AssertionError();
+        }
+        const tile = this.blueprints.get(effect.blueprint_id);
+        if (!tile) {
+            throw new AssertionError();
+        }
+        this.#tiles[tileIndex] = tile;
+        this.#updateTileElement(tileIndex);
     }
 
     #tick() {

@@ -61,7 +61,7 @@ class Action(BaseModel): # type: ignore[misc]
 
         An action with result information is returned.
 
-        May be overriden by subclass. By default, self is returned.
+        May be overridden by subclass. By default, self is returned.
         """
         return self
 

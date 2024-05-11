@@ -96,8 +96,9 @@ export class BlueprintEffectsElement extends WindowElement {
      * @returns {CauseElement}
      */
     #renderCause(cause) {
-        const CauseElement = {UseCause: UseCauseElement}[cause.type];
-        const element = new CauseElement();
+        const elements = {UseCause: UseCauseElement, "*": undefined};
+        const Element = elements[cause.type] ?? CauseElement;
+        const element = new Element();
         element.classList.add("card");
         element.cause = cause;
         return element;
@@ -173,8 +174,9 @@ class EffectListElement extends HTMLElement {
      * @returns {EffectElement}
      */
     #renderEffect(effect) {
-        const EffectElement = {TransformTileEffect: TransformTileEffectElement}[effect.type];
-        const element = new EffectElement();
+        const elements = {TransformTileEffect: TransformTileEffectElement, "*": undefined};
+        const Element = elements[effect.type] ?? EffectElement;
+        const element = new Element();
         element.classList.add("card");
         element.effect = effect;
         return element;
@@ -186,31 +188,75 @@ class EffectListElement extends HTMLElement {
 }
 customElements.define("room-effect-list", EffectListElement);
 
-/** Cause form. */
+/**
+ * Cause form.
+ *
+ * Content may be overridden by subclass. By default, a placeholder is rendered.
+ */
 class CauseElement extends HTMLElement {
+    /** @type {Cause} */
+    #cause = {type: "*"};
+
+    constructor() {
+        super();
+        this.replaceChildren(
+            document.importNode(
+                querySelector(document, "#room-cause-template", HTMLTemplateElement).content,
+                true
+            )
+        );
+    }
+
     /**
      * Current value.
+     *
+     * May be overridden by subclass.
      * @type {Cause}
      */
     get cause() {
-        throw new AssertionError();
+        return this.#cause;
     }
 
-    set cause(value) {}
+    set cause(value) {
+        this.#cause = value;
+    }
 }
+customElements.define("room-cause", CauseElement);
 
-/** Effect form. */
+/**
+ * Effect form.
+ *
+ * Content may be overridden by subclass. By default, a placeholder is rendered.
+ */
 class EffectElement extends HTMLElement {
+    /** @type {Effect} */
+    #effect = {type: "*"};
+
+    constructor() {
+        super();
+        this.replaceChildren(
+            document.importNode(
+                querySelector(document, "#room-effect-template", HTMLTemplateElement).content,
+                true
+            )
+        );
+    }
+
     /**
      * Current value.
+     *
+     * May be overridden by subclass.
      * @type {Effect}
      */
     get effect() {
-        throw new AssertionError();
+        return this.#effect;
     }
 
-    set effect(value) {}
+    set effect(value) {
+        this.#effect = value;
+    }
 }
+customElements.define("room-effect", EffectElement);
 
 /**
  * Header for cause and effect forms.
@@ -238,7 +284,7 @@ customElements.define("room-effect-header", EffectHeaderElement);
 class UseCauseElement extends CauseElement {
     constructor() {
         super();
-        this.append(
+        this.replaceChildren(
             document.importNode(
                 querySelector(document, "#room-use-cause-template", HTMLTemplateElement).content,
                 true
@@ -265,7 +311,7 @@ class TransformTileEffectElement extends EffectElement {
 
     constructor() {
         super();
-        this.append(
+        this.replaceChildren(
             document.importNode(
                 querySelector(
                     document, "#room-transform-tile-effect-template", HTMLTemplateElement
