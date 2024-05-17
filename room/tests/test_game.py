@@ -5,8 +5,8 @@ from tempfile import TemporaryDirectory
 from unittest import IsolatedAsyncioTestCase
 
 from room import context
-from room.game import (DEFAULT_BLUEPRINTS, Game, Member, OnlineRoom, Tile, TransformTileEffect,
-                       UseCause)
+from room.game import (DEFAULT_BLUEPRINTS, Game, Member, BaseRoom, OnlineRoom, Tile,
+                       TransformTileEffect, UseCause)
 
 class TestCase(IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
@@ -48,6 +48,13 @@ class RoomTest(TestCase):
             self.assertIn(member.id, self.game.members)
         self.assertNotIn(member, self.room.members)
         self.assertNotIn(member.id, self.game.members)
+
+    async def test_perform_update_room_action(self) -> None:
+        room = BaseRoom(id=self.room.id, title='Cat Colony', description='Hangout for the cats.')
+        action = OnlineRoom.UpdateRoomAction(member_id=self.member.id, room=room)
+        await action.perform()
+        self.assertEqual(self.room.title, room.title)
+        self.assertEqual(self.room.description, room.description)
 
     async def test_perform_place_tile_action(self) -> None:
         action = OnlineRoom.PlaceTileAction(member_id=self.member.id, tile_index=0,

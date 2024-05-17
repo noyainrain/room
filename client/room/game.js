@@ -4,7 +4,7 @@ import {WindowElement, renderTileItem, request} from "core";
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.4.1";
+const VERSION = "0.5.0";
 
 /**
  * Player inventory window.

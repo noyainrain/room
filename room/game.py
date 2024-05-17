@@ -24,13 +24,13 @@ from logging import getLogger
 from os import PathLike
 from pathlib import Path
 from secrets import token_urlsafe
-from typing import Annotated, ClassVar, Literal, NoReturn, TypeVar, Union, cast
+from typing import Annotated, ClassVar, Literal, NoReturn, Optional, TypeVar, Union, cast
 
 from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field, field_serializer,
                       field_validator, model_validator)
 
 from . import context
-from .core import Player, PrivatePlayer
+from .core import Player, PrivatePlayer, Text
 from .util import open_image_data_url, randstr, timer
 
 A = TypeVar('A', bound='Action')
@@ -280,12 +280,28 @@ class Tile(BaseModel): # type: ignore[misc]
             await effect.apply(tile_index)
         return effects
 
-class OfflineRoom(BaseModel): # type: ignore[misc]
-    """Room file.
+class BaseRoom(BaseModel): # type: ignore[misc]
+    """Room basis.
 
     .. attribute:: id
 
        Unique room ID.
+
+    .. attribute:: title
+
+       Room title.
+
+    .. attribute:: description
+
+       Room description.
+    """
+
+    id: str
+    title: Text
+    description: Optional[Text]
+
+class OfflineRoom(BaseRoom): # type: ignore[misc]
+    """Room file.
 
     .. attribute:: tile_ids
 
@@ -316,17 +332,16 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
     HEIGHT: ClassVar[int] = 9
     MEDIA_TYPE: ClassVar[str] = 'application/vnd.room+json'
 
-    id: str
     tile_ids: Annotated[list[str], Field(min_length=WIDTH * HEIGHT, max_length=WIDTH * HEIGHT)]
     blueprints: dict[str, Tile]
-    version: Literal['0.3']
+    version: Literal['0.4']
 
     @model_validator(mode='before')
     @classmethod
     def _check(cls, data: dict[str, object]) -> dict[str, object]:
         # Update version
-        if data.get('version') in {None, '0.1', '0.2'}:
-            data['version'] = '0.3'
+        if data.get('version') in {None, '0.1', '0.2', '0.3'}:
+            data['version'] = '0.4'
 
         # Update size (0.3)
         source = data.get('tile_ids')
@@ -346,6 +361,12 @@ class OfflineRoom(BaseModel): # type: ignore[misc]
                 i = offset[0] + (y + offset[1]) * cls.WIDTH
                 tile_ids[i:i + source_width] = source[source_i:source_i + source_width]
             data['tile_ids'] = tile_ids
+
+        # Update details (0.4)
+        if 'title' not in data:
+            data['title'] = 'New Room'
+        if 'description' not in data:
+            data['description'] = None
 
         return data
 
@@ -386,8 +407,9 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
 
     def with_members(self) -> OnlineRoomWithMembers:
         """Create a copy of the room with members included."""
-        room = OnlineRoomWithMembers(id=self.id, tile_ids=self.tile_ids, blueprints=self.blueprints,
-                                     version=self.version)
+        room = OnlineRoomWithMembers(
+            id=self.id, title=self.title, description=self.description, tile_ids=self.tile_ids,
+            blueprints=self.blueprints, version=self.version)
         room._members = self._members
         return room
 
@@ -413,6 +435,25 @@ class OnlineRoom(OfflineRoom): # type: ignore[misc]
         """
 
         room: OnlineRoomWithMembers
+
+    class UpdateRoomAction(Action): # type: ignore[misc]
+        """Action of updating room details.
+
+        .. attribute:: room
+
+           Updated room basis.
+        """
+
+        room: BaseRoom
+
+        async def perform(self) -> OnlineRoom.UpdateRoomAction:
+            room = context.room.get()
+            if self.room.id != room.id:
+                raise ValueError(f'External room {self.room.id}')
+            room.title = self.room.title
+            room.description = self.room.description
+            await room.publish(self)
+            return self
 
     class PlaceTileAction(Action): # type: ignore[misc]
         """Action of placing a tile.
@@ -694,8 +735,9 @@ class Game:
             blueprint.id: blueprint.model_copy() for blueprint in DEFAULT_BLUEPRINTS.values()
         }
         room = OnlineRoom(
-            id=randstr(), tile_ids=['void'] * (OfflineRoom.WIDTH * OfflineRoom.HEIGHT),
-            blueprints=blueprints, version='0.3')
+            id=randstr(), title='New Room', description=None,
+            tile_ids=['void'] * (OfflineRoom.WIDTH * OfflineRoom.HEIGHT), blueprints=blueprints,
+            version='0.4')
         self.rooms[room.id] = room
         return room
 

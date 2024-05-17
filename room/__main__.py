@@ -13,7 +13,7 @@ from logging import getLogger
 import signal
 import sys
 from threading import current_thread, main_thread
-from typing import Annotated, Union, cast, get_type_hints
+from typing import Union, cast, get_type_hints
 from urllib.parse import urlsplit
 
 from aiohttp import WSCloseCode
@@ -21,15 +21,15 @@ from aiohttp.abc import AbstractAccessLogger
 from aiohttp.web import (
     Application, AppRunner, BaseRequest, FileResponse, HTTPBadRequest, HTTPUnauthorized, Request,
     Response, RouteTableDef, StaticResource, StreamResponse, TCPSite, WebSocketResponse, middleware)
-from pydantic import StringConstraints, TypeAdapter, ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from . import context
+from .core import Text
 from .game import FailedAction, Game, Member, OnlineRoom
 from .server import api_routes
 from .util import WSMessage, cancel, template, timer
 
-_NonblankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-_AnyAction = Union[OnlineRoom.PlaceTileAction, OnlineRoom.UseAction,
+_AnyAction = Union[OnlineRoom.UpdateRoomAction, OnlineRoom.PlaceTileAction, OnlineRoom.UseAction,
                    OnlineRoom.UpdateBlueprintAction, Member.MoveMemberAction]
 
 _CLOSE_CODE_UNAUTHORIZED = 4001
@@ -37,7 +37,7 @@ _CLOSE_CODE_UNKNOWN_ROOM = 4004
 
 ui_routes = RouteTableDef()
 
-_ErrorModel = TypeAdapter(_NonblankStr)
+_ErrorModel = TypeAdapter(Text)
 _AnyActionModel: TypeAdapter[_AnyAction] = TypeAdapter(_AnyAction)
 
 class Shell:
