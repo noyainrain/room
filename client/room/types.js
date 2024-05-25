@@ -1,5 +1,8 @@
 /** Game type definitions. */
 
+// Use intersection to work around TypeScript not supporting typedef inheritance (see
+// https://github.com/microsoft/TypeScript/issues/20077)
+
 /**
  * @typedef Player
  * @property {string} id
@@ -47,12 +50,19 @@
  */
 
 /**
- * @typedef Room
+ * @typedef BaseRoom
  * @property {string} id
+ * @property {string} title
+ * @property {?string} description
+ */
+
+/**
+ * @typedef RoomProperties
  * @property {string[]} tile_ids
  * @property {Object<string, Tile>} blueprints
  * @property {string} version
  * @property {Member[]} members
+ * @typedef {RoomProperties & BaseRoom} Room
  */
 
 /**
@@ -67,6 +77,13 @@
  * @property {"WelcomeAction"} type
  * @property {string} member_id
  * @property {Room} room
+ */
+
+/**
+ * @typedef UpdateRoomAction
+ * @property {"UpdateRoomAction"} type
+ * @property {string} member_id
+ * @property {BaseRoom} room
  */
 
 /**
@@ -100,6 +117,6 @@
  */
 
 /** @typedef {
-   FailedAction | WelcomeAction | PlaceTileAction | UseAction | UpdateBlueprintAction |
-   MoveMemberAction
+   FailedAction | WelcomeAction | UpdateRoomAction | PlaceTileAction | UseAction |
+   UpdateBlueprintAction | MoveMemberAction
 } Action */

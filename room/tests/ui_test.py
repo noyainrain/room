@@ -109,6 +109,27 @@ class UITest(TestCase):
             equipment.find_element(By.CSS_SELECTOR, 'img').get_property('src'), # type: ignore[misc]
             DEFAULT_BLUEPRINTS['wall-door-closed'].image)
 
+        # View about room
+        equipment.click()
+        self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-about').click()
+        about_h2 = self.browser.find_element(By.CSS_SELECTOR, 'room-about h2')
+        self.assertEqual(about_h2.text, 'New Room')
+
+        # Update room details
+        self.browser.find_element(By.CSS_SELECTOR, '.room-about-edit').click()
+        form = self.browser.find_element(By.CSS_SELECTOR, 'room-editor form')
+        title_input = form.find_element(By.NAME, 'title')
+        title_input.clear()
+        title_input.send_keys('Cat Colony')
+        form.find_element(By.NAME, 'description').send_keys('Hangout for the cats.')
+        form.find_element(By.CSS_SELECTOR, 'button:not([type])').click()
+        self.assertEqual(about_h2.text, 'Cat Colony')
+        header = self.browser.find_element(By.CSS_SELECTOR, 'room-about room-window-header')
+        cast(
+            WebElement,
+            header.shadow_root.find_element(By.CSS_SELECTOR, '.room-window-header-close')
+        ).click()
+
         # View workshop
         equipment.click()
         self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-open-workshop').click()

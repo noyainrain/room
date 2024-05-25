@@ -1,10 +1,10 @@
 /** Room UI. */
 
-import {WindowElement, renderTileItem, request} from "core";
+import {WindowElement, getGame, renderTileItem, request} from "core";
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.5.0";
+const VERSION = "0.5.1";
 
 /**
  * Player inventory window.
@@ -27,12 +27,19 @@ class InventoryElement extends WindowElement {
             this.dispatchEvent(new InventoryEvent("select", null));
             this.close();
         });
-        querySelector(this, ".room-inventory-open-workshop").addEventListener("click", () => {
-            querySelector(document, "room-game", GameElement).workshopWindow.open();
+        querySelector(this, ".room-inventory-open-workshop").addEventListener("click", async () => {
+            const game = await getGame();
+            game.workshopWindow.open();
             this.close();
         });
-        querySelector(this, ".room-inventory-open-credits").addEventListener("click", () => {
-            querySelector(document, "room-game", GameElement).creditsWindow.open();
+        querySelector(this, ".room-inventory-about").addEventListener("click", async () => {
+            const game = await getGame();
+            game.aboutWindow.open();
+            this.close();
+        });
+        querySelector(this, ".room-inventory-open-credits").addEventListener("click", async () => {
+            const game = await getGame();
+            game.creditsWindow.open();
             this.close();
         });
     }
@@ -96,6 +103,80 @@ class InventoryEvent extends Event {
         this.item = item;
     }
 }
+
+/** About room window. */
+class AboutElement extends WindowElement {
+    #titleElement = querySelector(this, "room-window-header span");
+    #p = querySelector(this, "p");
+
+    constructor() {
+        super();
+        querySelector(this, ".room-about-edit").addEventListener("click", async () => {
+            const game = await getGame();
+            game.roomEditorWindow.open();
+        });
+    }
+
+    connectedCallback() {
+        (async () => {
+            const game = await getGame();
+            game.addEventListener(
+                "WelcomeAction",
+                event => this.#update(/** @type {ActionEvent<WelcomeAction>} */ (event).action.room)
+            );
+            game.addEventListener(
+                "UpdateRoomAction",
+                event => this.#update(
+                    /** @type {ActionEvent<UpdateRoomAction>} */ (event).action.room
+                )
+            );
+        })();
+    }
+
+    /** @param {BaseRoom} room */
+    #update(room) {
+        this.#titleElement.textContent = room.title;
+        this.#p.textContent = room.description;
+    }
+}
+customElements.define("room-about", AboutElement);
+
+/** Room details editor window. */
+class RoomEditorElement extends WindowElement {
+    #titleInput = querySelector(this, '[name="title"]', HTMLInputElement);
+    #descriptionTextArea = querySelector(this, '[name="description"]', HTMLTextAreaElement);
+
+    constructor() {
+        super();
+        const form = querySelector(this, "form", HTMLFormElement);
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+            const game = await getGame();
+            if (form.checkValidity() && game.room && game.member) {
+                game.perform({
+                    type: "UpdateRoomAction",
+                    member_id: game.member.id,
+                    room: {
+                        id: game.room.id,
+                        title: this.#titleInput.value,
+                        description: this.#descriptionTextArea.value.trim() || null
+                    }
+                });
+                this.close();
+            }
+        });
+    }
+
+    async open() {
+        const game = await getGame();
+        if (game.room) {
+            this.#titleInput.value = game.room.title;
+            this.#descriptionTextArea.value = game.room.description ?? "";
+        }
+        await super.open();
+    }
+}
+customElements.define("room-editor", RoomEditorElement);
 
 /** Credits window. */
 class CreditsElement extends WindowElement {
@@ -412,6 +493,12 @@ export class GameElement extends HTMLElement {
      */
     inventoryWindow = querySelector(this, "room-inventory", InventoryElement);
 
+    /** About room window. */
+    aboutWindow = querySelector(this, "room-about", AboutElement);
+
+    /** Room details editor window. */
+    roomEditorWindow = querySelector(this, "room-editor", RoomEditorElement);
+
     /**
      * Credits window.
      * @type {CreditsElement}
@@ -530,6 +617,10 @@ export class GameElement extends HTMLElement {
         this.addEventListener(
             "WelcomeAction",
             event => this.#join(/** @type {ActionEvent<WelcomeAction>} */ (event).action)
+        );
+        this.addEventListener(
+            "UpdateRoomAction",
+            event => this.#updateRoom(/** @type {ActionEvent<UpdateRoomAction>} */ (event).action)
         );
         this.addEventListener(
             "PlaceTileAction",
@@ -850,6 +941,14 @@ export class GameElement extends HTMLElement {
                 "Welcome!", "Hold / Touch to move. Click / Tap to use items."
             );
         })();
+    }
+
+    /** @param {UpdateRoomAction} action */
+    async #updateRoom(action) {
+        if (!this.room) {
+            throw new AssertionError();
+        }
+        Object.assign(this.room, action.room);
     }
 
     /** @param {PlaceTileAction} action */

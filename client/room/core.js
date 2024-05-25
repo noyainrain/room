@@ -2,6 +2,22 @@
 
 import {querySelector} from "util";
 
+/**
+ * Get the current game client.
+ * @returns {Promise<import("game").GameElement>}
+ */
+export async function getGame() {
+    if (!getGame.game) {
+        await customElements.whenDefined("room-game");
+        getGame.game = /** @type {import("game").GameElement } */ (
+            document.querySelector("room-game")
+        );
+    }
+    return getGame.game;
+}
+/** @type {?import("game").GameElement} */
+getGame.game = null;
+
 // Work around TypeScript not supporting tuple for rest @param (see
 // https://github.com/microsoft/TypeScript/issues/49801)
 /**
@@ -61,6 +77,47 @@ export class WindowElement extends HTMLElement {
     }
 }
 customElements.define("room-window", WindowElement);
+
+/** Window header. */
+export class WindowHeaderElement extends HTMLElement {
+    /**
+     * Parent window, if any.
+     * @type {?WindowElement}
+     */
+    window = null;
+
+    constructor() {
+        super();
+        const shadow = this.attachShadow({mode: "open"});
+        shadow.append(
+            document.importNode(
+                querySelector(
+                    document, "#room-window-header-template", HTMLTemplateElement
+                ).content, true
+            )
+        );
+        querySelector(shadow, ".room-window-header-close").addEventListener(
+            "click", () => this.window?.close()
+        );
+    }
+
+    connectedCallback() {
+        (async () => {
+            await customElements.whenDefined("room-window");
+            this.window = this.closest(".room-window");
+        })();
+    }
+
+    /**
+     * Type of close control, either a close or a back button.
+     * @type {"close" | "back"}
+     */
+    get close() {
+        const value = this.getAttribute("close");
+        return value === "back" ? value : "close";
+    }
+}
+customElements.define("room-window-header", WindowHeaderElement);
 
 /**
  * Render a tile list item.

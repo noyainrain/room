@@ -224,8 +224,60 @@
                     </ul>
                     <button class="room-inventory-open-workshop">Open Workshop</button>
                     <a class="block">Invite Link: <span></span></a>
+                    <button class="room-inventory-about">
+                        <img class="icon" src="{{shell.url('images/info.png')}}" /> About Room
+                    </button>
                     <button class="room-inventory-open-credits">Credits</button>
                 </room-inventory>
+
+                <room-about>
+                    <style>
+                        room-about p {
+                            white-space: pre-line;
+                        }
+
+                        p:empty + .room-about-edit {
+                            border-top: unset;
+                        }
+                    </style>
+
+                    <room-window-header>
+                        <h2>
+                            <img class="icon" src="{{shell.url('images/info.png')}}" alt="" />
+                            <span></span>
+                        </h2>
+                    </room-window-header>
+                    <p></p>
+                    <button class="room-about-edit">
+                        <img class="icon" src="{{shell.url('images/edit.png')}}" alt="" /> Edit
+                    </button>
+                </room-about>
+
+                <room-editor>
+                    <form novalidate="novalidate">
+                        <room-window-header close="back">
+                            <h2>
+                                <img class="icon" src="{{shell.url('images/edit.png')}}" alt="" />
+                                Edit Room Details
+                            </h2>
+                            <button slot="menu">
+                                <img class="icon" src="{{shell.url('images/done.png')}}" alt="" />
+                                Done
+                            </button>
+                        </room-window-header>
+                        <label>
+                            <small>Title</small>
+                            <input
+                                name="title" required="required" pattern=".*\S.*" autocomplete="off"
+                            />
+                            <small class="task">Enter a title</small>
+                        </label>
+                        <label>
+                            <small>Description (optional)</small>
+                            <textarea name="description"></textarea>
+                        </label>
+                    </form>
+                </room-editor>
 
                 <room-credits>
                     <style>
@@ -326,36 +378,40 @@
 
                         .room-blueprint-color {
                             --room-blueprint-color-value: "";
+                            padding: unset;
                         }
 
                         .room-blueprint-color:not(:first-child) {
                             border: unset;
                         }
 
-                        .room-blueprint-color:focus,
-                        .room-blueprint-color:hover {
+                        .room-blueprint-color:has(input[type="radio"]):is(:focus-within, :hover) {
                             color: unset;
                             background: unset;
                         }
 
+                        .room-blueprint-color:not(:first-child):is(:focus-within, :hover)::after,
+                        .room-blueprint-color:not(:last-child):is(:focus-within, :hover)::after {
+                            border: var(--room-size-border) solid var(--room-color-text);
+                        }
+
                         .room-blueprint-color input {
-                            display: none;
+                            display: block;
+                            appearance: none;
                         }
 
                         .room-blueprint-color span {
                             display: block;
-                            width: 1.5em;
-                            height: 1.5em;
+                            width: 1lh;
+                            height: 1lh;
                         }
 
                         .room-blueprint-color span:not(.placeholder) {
                             background: var(--room-blueprint-color-value);
                         }
 
-                        .room-blueprint-color:focus span,
-                        .room-blueprint-color:hover span,
                         .room-blueprint-color input:checked + span {
-                            border: var(--room-size-border) solid;
+                            border: var(--room-size-border) solid var(--room-color-text);
                         }
 
                         room-blueprint footer {
@@ -378,7 +434,7 @@
                     </style>
 
                     <template class="room-blueprint-color-template">
-                        <label class="room-blueprint-color" tabindex="0">
+                        <label class="room-blueprint-color">
                             <input type="radio" name="color" />
                             <span></span>
                         </label>
@@ -457,6 +513,10 @@
                         .room-blueprint-effects-check {
                             display: none;
                         }
+
+                        .room-blueprint-effects-check + .task {
+                            margin-inline: var(--room-size-gap);
+                        }
                     </style>
 
                     <template class="room-blueprint-effects-item-template">
@@ -488,7 +548,6 @@
                                     }
 
                                     .room-effect-list-check + .task {
-                                        padding: unset;
                                         margin-top: var(--room-size-gap);
                                     }
                                 </style>
@@ -522,15 +581,10 @@
                     </template>
 
                     <form novalidate="novalidate">
-                        <header>
+                        <room-window-header close="back">
                             <h2>Tile Effects Editor</h2>
-                            <button>Done</button>
-                            <button type="button" class="room-blueprint-effects-back">
-                                <img
-                                    class="icon" src="{{shell.url('images/back.png')}}" alt="Back"
-                                />
-                            </button>
-                        </header>
+                            <button slot="menu">Done</button>
+                        </room-window-header>
                         <dl>
                             <dt
                                 class="room-blueprint-effects-add-cause contextual contextual-reversed"
@@ -568,6 +622,42 @@
                 </room-window>
             </div>
         </room-game>
+
+        <template id="room-window-header-template">
+            <style>
+                @import "{{shell.url('room.css')}}";
+
+                :host {
+                    display: block;
+                }
+
+                :host(:not(:last-child)) {
+                    border-bottom: var(--room-size-border) solid;
+                }
+
+                ::slotted(h2) {
+                    flex: auto !important;
+                    border: unset !important;
+                }
+
+                ::slotted(button) {
+                    border: unset !important;
+                    border-left: var(--room-size-border) solid var(--room-color-text) !important;
+                }
+
+                :host([close="back"]) .icon {
+                    content: url("{{shell.url('images/back.png')}}");
+                }
+            </style>
+
+            <header>
+                <slot></slot>
+                <slot name="menu"></slot>
+                <button type="button" class="room-window-header-close">
+                    <img class="icon" src="{{shell.url('images/close.png')}}" alt="Close" />
+                </button>
+            </header>
+        </template>
 
         <template id="tile-item-template">
             <li tabindex="0"><img class="tile" /></li>

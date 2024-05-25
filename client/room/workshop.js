@@ -23,9 +23,6 @@ export class BlueprintEffectsElement extends WindowElement {
                 this.close();
             }
         });
-        querySelector(this, ".room-blueprint-effects-back").addEventListener(
-            "click", () => this.close()
-        );
         querySelector(this, ".room-blueprint-effects-use-cause").addEventListener(
             "click", event => {
                 this.#addItem({type: "UseCause"}, []);

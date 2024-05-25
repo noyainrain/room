@@ -2,9 +2,15 @@
     box-sizing: border-box;
 }
 
+::selection {
+    color: var(--room-color-background);
+    background: var(--room-color-text);
+}
+
 html {
     --room-color-text: white;
     --room-color-background: #2a2a2a;
+    --room-color-label: #aaa;
     --room-color-task: #ff5;
     --room-size-gap: 0.5rem;
     --room-size-border: 0.25rem;
@@ -33,6 +39,7 @@ h3,
 p,
 ul,
 button,
+label,
 fieldset {
     display: block;
     padding: var(--room-size-gap);
@@ -46,6 +53,7 @@ h3:empty,
 p:empty,
 ul:empty,
 button:empty,
+label:empty,
 fieldset:empty {
     display: none;
 }
@@ -63,9 +71,45 @@ h2 {
     font-weight: bold;
 }
 
+/** Interactive: Interactive element, i.e. a button or input. */
+
+button:not(:first-child),
+a.block:not(:first-child),
+label:not(:first-child) {
+    border-top: var(--room-size-border) solid var(--room-color-text);
+}
+
+:is(header, room-window-header) + button:not(:first-child),
+:is(header, room-window-header) + a.block:not(:first-child),
+:is(header, room-window-header) + label:not(:first-child) {
+    border-top: unset;
+}
+
+label {
+    position: relative;
+}
+
+label:is(:focus-within, :hover)::after {
+    position: absolute;
+    inset: 0;
+    border: var(--room-size-border) solid var(--room-color-text);
+    content: "";
+    pointer-events: none;
+}
+
+label:not(:first-child):is(:focus-within, :hover)::after {
+    border-top: unset;
+}
+
+label:not(:last-child):is(:focus-within, :hover)::after {
+    border-bottom: unset;
+}
+
+/** Button: Player action button. */
+
 button,
 a.block,
-label {
+label:has(input[type="checkbox"], input[type="radio"]) {
     border: unset;
     font: unset;
     text-align: unset;
@@ -74,34 +118,24 @@ label {
     background: unset;
 }
 
-button:not(:first-child),
-a.block:not(:first-child),
-label:not(:first-child) {
-    border-top: var(--room-size-border) solid var(--room-color-text);
-}
-
-button {
-    width: 100%;
-}
-
 button,
 a.block,
-label,
+label:has(input[type="checkbox"], input[type="radio"]),
 [tabindex] {
     cursor: pointer;
 }
 
-button:focus,
-button:hover,
-a.block:focus,
-a.block:hover,
-label:focus-within,
-label:hover,
-[tabindex]:focus,
-[tabindex]:hover {
+button:is(:focus, :hover),
+a.block:is(:focus, :hover),
+label:has(input[type="checkbox"], input[type="radio"]):is(:focus-within, :hover),
+[tabindex]:is(:focus, :hover) {
     outline: unset;
     color: var(--room-color-background);
     background: var(--room-color-text);
+}
+
+button {
+    width: 100%;
 }
 
 button.inline {
@@ -115,23 +149,66 @@ button.inline .icon {
     margin-right: var(--room-size-border);
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+    display: unset;
+    width: unset;
+}
+
+/** Form: Form of labeled inputs. */
+
 form:invalid button:not([type=button]) {
     color: var(--room-color-task);
+}
+
+form:invalid button:not([type=button]):is(:focus, :hover) {
+    color: var(--room-color-background);
+    background: var(--room-color-task);
 }
 
 fieldset {
     border: unset;
 }
 
+label {
+    cursor: text;
+}
+
+input,
+textarea {
+    display: block;
+    width: 100%;
+    padding: unset;
+    border: unset;
+    outline: unset;
+    margin: unset;
+    font: unset;
+    color: unset;
+    background: unset;
+    resize: none;
+}
+
+textarea {
+    height: 4lh;
+}
+
+label small {
+    display: block;
+    color: var(--room-color-label);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
 small.task {
     display: block;
-    padding-inline: var(--room-size-gap);
     color: var(--room-color-task);
 }
 
 input:valid + small.task {
     display: none;
 }
+
+/** Header: Header with menu. */
 
 header {
     display: flex;
@@ -143,19 +220,19 @@ header:not(:last-child) {
 
 header h2,
 header h3 {
-    border: unset;
     flex: auto;
+    border: unset;
 }
 
 header button {
     box-sizing: content-box;
     width: unset;
-    min-width: 1.5em;
+    min-width: 1lh;
     text-align: center;
 }
 
 header button:not(:first-child) {
-    border-top: unset;
+    border: unset;
     border-left: var(--room-size-border) solid var(--room-color-text);
 }
 
@@ -253,6 +330,8 @@ small {
     background-origin: border-box;
 }
 
+/** Window: Foreground window. */
+
 .room-window {
     position: absolute;
     inset: var(--room-size-gap) var(--room-size-gap) auto var(--room-size-gap);
@@ -271,6 +350,13 @@ small {
 .room-window:not(.room-window-open),
 .room-window:not(:nth-last-child(1 of .room-window-open)) {
     display: none;
+}
+
+room-window-header button {
+    box-sizing: content-box;
+    width: unset;
+    min-width: 1lh;
+    text-align: center;
 }
 
 .room-entity {
