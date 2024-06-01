@@ -177,8 +177,11 @@ class Effect(BaseModel): # type: ignore[misc]
 
     type: str
 
-    async def apply(self, tile_index: int) -> None:
-        """Apply the effect to the tile at *tile_index*."""
+    async def apply(self, tile_index: int) -> Effect:
+        """Apply the effect to the tile at *tile_index*.
+
+        The applied effect with concrete result details is returned.
+        """
         raise NotImplementedError()
 
 class UseCause(Cause): # type: ignore[misc]
@@ -204,8 +207,9 @@ class TransformTileEffect(Effect): # type: ignore[misc]
         """Target form."""
         return context.room.get().blueprints[self.blueprint_id]
 
-    async def apply(self, tile_index: int) -> None:
+    async def apply(self, tile_index: int) -> TransformTileEffect:
         context.room.get().tile_ids[tile_index] = self.blueprint_id
+        return self
 
 AnyCause = Annotated[Union[UseCause], Field(discriminator='type')]
 AnyEffect = Annotated[Union[TransformTileEffect], Field(discriminator='type')]
@@ -276,9 +280,7 @@ class Tile(BaseModel): # type: ignore[misc]
         """Apply the effects of a *cause* to the tile at *tile_index*."""
         # Note that if there is a crash applying an effect, subsequent effects will not be applied
         effects = self.effects.get(cause) or []
-        for effect in effects:
-            await effect.apply(tile_index)
-        return effects
+        return [await effect.apply(tile_index) for effect in effects]
 
 class BaseRoom(BaseModel): # type: ignore[misc]
     """Room basis.
