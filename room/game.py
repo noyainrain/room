@@ -211,8 +211,50 @@ class TransformTileEffect(Effect): # type: ignore[misc]
         context.room.get().tile_ids[tile_index] = self.blueprint_id
         return self
 
+class Link(BaseModel): # type: ignore[misc]
+    """Web link.
+
+    .. attribute:: url
+
+       Link URL.
+
+    .. attribute:: title
+
+       Link title.
+    """
+
+    # The base for relative URLs is where the room is served, e.g. https://example.org/rooms/abc or
+    # file:/home/frank/abc.json. Conceptually, rooms are mapped to a familiar web address via link
+    # tag:
+    # <link
+    #     rel="alternate" type="application/vnd.room+json" href="https://example.org/api/rooms/abc"
+    # />
+
+    url: str
+    title: Text
+
+class FollowLinkEffect(Effect): # type: ignore[misc]
+    """Effect of following a link.
+
+    .. attribute:: url
+
+       Link URL.
+
+    .. attribute:: link
+
+       Followed link.
+    """
+
+    type: Literal['FollowLinkEffect'] = 'FollowLinkEffect'
+    url: str
+    link: Optional[Link]
+
+    async def apply(self, tile_index: int) -> FollowLinkEffect:
+        link = Link(url=self.url, title='Link')
+        return self.model_copy(update={'link': link}) # type: ignore[misc]
+
 AnyCause = Annotated[Union[UseCause], Field(discriminator='type')]
-AnyEffect = Annotated[Union[TransformTileEffect], Field(discriminator='type')]
+AnyEffect = Annotated[Union[TransformTileEffect, FollowLinkEffect], Field(discriminator='type')]
 
 class Tile(BaseModel): # type: ignore[misc]
     """Room tile.
@@ -336,14 +378,14 @@ class OfflineRoom(BaseRoom): # type: ignore[misc]
 
     tile_ids: Annotated[list[str], Field(min_length=WIDTH * HEIGHT, max_length=WIDTH * HEIGHT)]
     blueprints: dict[str, Tile]
-    version: Literal['0.4']
+    version: Literal['0.5']
 
     @model_validator(mode='before')
     @classmethod
     def _check(cls, data: dict[str, object]) -> dict[str, object]:
         # Update version
-        if data.get('version') in {None, '0.1', '0.2', '0.3'}:
-            data['version'] = '0.4'
+        if data.get('version') in {None, '0.1', '0.2', '0.3', '0.4'}:
+            data['version'] = '0.5'
 
         # Update size (0.3)
         source = data.get('tile_ids')
@@ -680,6 +722,15 @@ DEFAULT_BLUEPRINTS = {
             'AAAABJRU5ErkJggg==',
         wall=True,
         effects={UseCause(): [TransformTileEffect(blueprint_id='wall-lamp-off')]}
+    ),
+    'wall-board': Tile(
+        id='wall-board',
+        image=
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQElEQVQYV2MMDQ39'
+            'z4AHMK4KZcCvgHITQFaEroLYsjqMEUyHAgUh/NUMYDfAFaxeDRLFVADVBvELUAEyYCTkSAC7zB/5tkwb/wAAAA'
+            'BJRU5ErkJggg==',
+        wall=True,
+        effects={UseCause(): [FollowLinkEffect(url='https://discord.gg/Jey5jCJy2T', link=None)]}
     )
 }
 
@@ -739,7 +790,7 @@ class Game:
         room = OnlineRoom(
             id=randstr(), title='New Room', description=None,
             tile_ids=['void'] * (OfflineRoom.WIDTH * OfflineRoom.HEIGHT), blueprints=blueprints,
-            version='0.4')
+            version='0.5')
         self.rooms[room.id] = room
         return room
 

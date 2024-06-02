@@ -14,24 +14,26 @@ import signal
 import sys
 from threading import current_thread, main_thread
 from typing import Union, cast, get_type_hints
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from aiohttp import WSCloseCode
 from aiohttp.abc import AbstractAccessLogger
 from aiohttp.web import (
-    Application, AppRunner, BaseRequest, FileResponse, HTTPBadRequest, HTTPUnauthorized, Request,
-    Response, RouteTableDef, StaticResource, StreamResponse, TCPSite, WebSocketResponse, middleware)
+    Application, AppKey, AppRunner, BaseRequest, FileResponse, HTTPBadRequest, HTTPUnauthorized,
+    Request, Response, RouteTableDef, StaticResource, StreamResponse, TCPSite, WebSocketResponse,
+    middleware)
 from pydantic import TypeAdapter, ValidationError
 
 from . import context
 from .core import Text
-from .game import FailedAction, Game, Member, OnlineRoom
+from .game import Action, Effect, FailedAction, FollowLinkEffect, Game, Member, OnlineRoom
 from .server import api_routes
 from .util import WSMessage, cancel, template, timer
 
 _AnyAction = Union[OnlineRoom.UpdateRoomAction, OnlineRoom.PlaceTileAction, OnlineRoom.UseAction,
                    OnlineRoom.UpdateBlueprintAction, Member.MoveMemberAction]
 
+_URL_KEY = AppKey("url", str)
 _CLOSE_CODE_UNAUTHORIZED = 4001
 _CLOSE_CODE_UNKNOWN_ROOM = 4004
 
@@ -93,7 +95,8 @@ async def _rooms(request: Request) -> WebSocketResponse:
                                   _AnyActionModel.validate_json(message.data, strict=True))
                     if action.member_id != member.id:
                         raise ValueError('Forbidden action')
-                    await action.perform()
+                    perform = _actions.get(type(action)) or _perform
+                    await perform(action, request.app)
                 except ValidationError as e:
                     error = f'Bad message ({e})'
                 except ValueError as e:
@@ -117,6 +120,33 @@ async def _rooms(request: Request) -> WebSocketResponse:
 
     websockets.remove(websocket)
     return websocket
+
+async def _update_blueprint(action: Action, api: Application) -> None:
+    def rewrite_effect_url(effect: Effect) -> Effect:
+        if isinstance(effect, FollowLinkEffect):
+            components = urlsplit(effect.url)
+            origin = f'{components.scheme}://{components.netloc}'
+            if origin == api[_URL_KEY]:
+                url = urlunsplit(('', '', components.path, components.query, components.fragment))
+                effect = effect.model_copy(update={'url': url}) # type: ignore[misc]
+        return effect
+
+    assert isinstance(action, OnlineRoom.UpdateBlueprintAction)
+    effects = {
+        cause:
+            [rewrite_effect_url(effect) for effect in effects]
+            for cause, effects in action.blueprint.effects.items()
+    }
+    blueprint = action.blueprint.model_copy(update={'effects': effects}) # type: ignore[misc]
+    action = action.model_copy(update={'blueprint': blueprint}) # type: ignore[misc]
+    await action.perform()
+
+async def _perform(action: Action, _: Application) -> None:
+    await action.perform()
+
+_actions: dict[type[Action], Callable[[Action, Application], Awaitable[None]]] = {
+    OnlineRoom.UpdateBlueprintAction: _update_blueprint
+}
 
 @middleware
 async def _authenticate(request: Request,
@@ -234,6 +264,7 @@ async def main() -> int:
             api = Application(middlewares=[_authenticate])
             api.on_response_prepare.append(_update_cookie)
             api.add_routes(api_routes)
+            api[_URL_KEY] = url
             api['secure'] = urlsplit(url).scheme == 'https'
             websockets: set[WebSocketResponse] = set()
             api['websockets'] = websockets

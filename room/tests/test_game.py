@@ -5,8 +5,8 @@ from tempfile import TemporaryDirectory
 from unittest import IsolatedAsyncioTestCase
 
 from room import context
-from room.game import (DEFAULT_BLUEPRINTS, Game, Member, BaseRoom, OnlineRoom, Tile,
-                       TransformTileEffect, UseCause)
+from room.game import (BaseRoom, FollowLinkEffect, Game, Link, Member, OnlineRoom, Tile,
+                       TransformTileEffect, UseCause, DEFAULT_BLUEPRINTS)
 
 class TestCase(IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
@@ -33,6 +33,12 @@ class TransformTileEffectTest(TestCase):
         effect = TransformTileEffect(blueprint_id='grass')
         await effect.apply(0)
         self.assertEqual(self.room.tiles[0], self.room.blueprints['grass'])
+
+class FollowLinkEffectTest(TestCase):
+    async def test_apply(self) -> None:
+        effect = FollowLinkEffect(url='https://example.org/', link=None)
+        effect = await effect.apply(0)
+        self.assertEqual(effect.link, Link(url=effect.url, title='Link'))
 
 class TileTest(TestCase):
     async def test_cause(self) -> None:
