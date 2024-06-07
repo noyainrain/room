@@ -1,10 +1,10 @@
 /** Room UI. */
 
-import {WindowElement, getGame, renderTileItem, request} from "core";
+import {WindowElement, WindowHeaderElement, getGame, renderTileItem, request} from "core";
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.7.0";
+const VERSION = "0.7.1";
 
 /**
  * Player inventory window.
@@ -35,6 +35,12 @@ class InventoryElement extends WindowElement {
         querySelector(this, ".room-inventory-about").addEventListener("click", async () => {
             const game = await getGame();
             game.aboutWindow.open();
+            this.close();
+        });
+        querySelector(this, ".room-inventory-howto").addEventListener("click", async () => {
+            const game = await getGame();
+            game.howtoWindow.tutorial = false;
+            game.howtoWindow.open();
             this.close();
         });
         querySelector(this, ".room-inventory-open-credits").addEventListener("click", async () => {
@@ -177,6 +183,30 @@ class RoomEditorElement extends WindowElement {
     }
 }
 customElements.define("room-editor", RoomEditorElement);
+
+/** How to play window. */
+class HowtoElement extends WindowElement {
+    #header = querySelector(this, "room-window-header", WindowHeaderElement);
+
+    constructor() {
+        super();
+        querySelector(this, ".room-howto-start").addEventListener("click", () => this.close());
+    }
+
+    /**
+     * Indicates if the window is in tutorial mode.
+     * @type {boolean}
+     */
+    get tutorial() {
+        return this.hasAttribute("tutorial");
+    }
+
+    set tutorial(value) {
+        this.toggleAttribute("tutorial", value);
+        this.#header.close = value ? "none" : "close";
+    }
+}
+customElements.define("room-howto", HowtoElement);
 
 /** Credits window. */
 class CreditsElement extends WindowElement {
@@ -487,10 +517,7 @@ export class GameElement extends HTMLElement {
      */
     member = null;
 
-    /**
-     * Player inventory window.
-     * @type {InventoryElement}
-     */
+    /** Player inventory window. */
     inventoryWindow = querySelector(this, "room-inventory", InventoryElement);
 
     /** About room window. */
@@ -499,33 +526,26 @@ export class GameElement extends HTMLElement {
     /** Room details editor window. */
     roomEditorWindow = querySelector(this, "room-editor", RoomEditorElement);
 
-    /**
-     * Credits window.
-     * @type {CreditsElement}
-     */
+    /** How to play window. */
+    howtoWindow = querySelector(this, "room-howto", HowtoElement);
+
+    /** Credits window. */
     creditsWindow = querySelector(this, "room-credits", CreditsElement);
 
-    /**
-     * Workshop window.
-     * @type {WorkshopElement}
-     */
+    /** Workshop window. */
     workshopWindow = querySelector(this, "room-workshop", WorkshopElement);
 
-    /**
-     * Blueprint editor window.
-     * @type {BlueprintElement}
-     */
+    /** Blueprint editor window. */
     blueprintWindow = querySelector(this, "room-blueprint", BlueprintElement);
 
     /** Blueprint effects editor window. */
     blueprintEffectsWindow = querySelector(this, "room-blueprint-effects", BlueprintEffectsElement);
 
-    /**
-     * Dialog window.
-     * @type {DialogElement}
-     */
+    /** Dialog window. */
     dialogWindow = querySelector(this, "room-dialog", DialogElement);
 
+    /** @type {?PrivatePlayer} */
+    #player = null;
     /** @type {Tile[]} */
     #tiles = [];
     /** @type {Map<string, Member>} */
@@ -563,6 +583,7 @@ export class GameElement extends HTMLElement {
     #pointer = null;
     /** @type {?WebSocket} */
     #socket = null;
+    #lessons = new Set(["moveMember", "placeTile"]);
 
     constructor() {
         super();
@@ -716,6 +737,8 @@ export class GameElement extends HTMLElement {
                             tile_index: index,
                             blueprint_id: this.#item.id
                         });
+                        this.#completeLesson("placeTile");
+
                     } else {
                         this.perform({
                             type: "UseAction",
@@ -730,8 +753,11 @@ export class GameElement extends HTMLElement {
         // When the pointer is down, detect its release outside of the scene
         addEventListener("pointerup", () => {
             clearTimeout(this.#tapTimeout);
-            this.#moveTarget = null;
-            clearInterval(this.#moveInterval);
+            if (this.#moveTarget) {
+                this.#moveTarget = null;
+                clearInterval(this.#moveInterval);
+                this.#completeLesson("moveMember");
+            }
         });
 
         // When the pointer is down, detect movement outside of the scene
@@ -764,13 +790,22 @@ export class GameElement extends HTMLElement {
         }, GameElement.#HEARTBEAT * 1000);
         this.#tick();
 
-        // Compatibility with legacy invite links
-        if (location.pathname === "/" && location.hash) {
-            history.replaceState(null, "", `/invites/${location.hash.slice(1)}`);
-        }
-
-        this.#router.route(location.pathname);
+        this.#launch();
     }
+
+    #launch = request(
+        async () => {
+            const response = await fetch("/api/players/self");
+            this.#player = await response.json();
+
+            // Compatibility with legacy invite links
+            if (location.pathname === "/" && location.hash) {
+                history.replaceState(null, "", `/invites/${location.hash.slice(1)}`);
+            }
+
+            this.#router.route(location.pathname);
+        }
+    );
 
     /** @param {?string} id */
     #initRoom(id) {
@@ -791,6 +826,17 @@ export class GameElement extends HTMLElement {
             this.#connect(roomID);
         }
     );
+
+    /**
+     * Current player.
+     * @type {PrivatePlayer}
+     */
+    get player() {
+        if (!this.#player) {
+            throw new Error("Uninitialized game");
+        }
+        return this.#player;
+    }
 
     /**
      * Send an action to the server to perform it.
@@ -933,14 +979,10 @@ export class GameElement extends HTMLElement {
         history.replaceState(null, "", `/invites/${this.room.id}${location.hash}`);
 
         // Start
-        (async () => {
-            await this.dialogWindow.open(
-                "Room", "What should we do with all this limited space?", "Start"
-            );
-            this.dialogWindow.open(
-                "Welcome!", "Hold / Touch to move. Click / Tap to use items."
-            );
-        })();
+        if (!this.player.tutorial) {
+            this.howtoWindow.tutorial = true;
+            this.howtoWindow.open();
+        }
     }
 
     /** @param {UpdateRoomAction} action */
@@ -1162,6 +1204,26 @@ export class GameElement extends HTMLElement {
             update();
         }, {once: true});
         element.classList.add("blended");
+    }
+
+    /** @param {"moveMember" | "placeTile"} lesson */
+    async #completeLesson(lesson) {
+        this.#lessons.delete(lesson);
+        if (this.#lessons.size === 0 && !this.player.tutorial) {
+            try {
+                const response = await fetch(
+                    "/api/players/self",
+                    {method: "PUT", body: JSON.stringify({...this.player, tutorial: true})}
+                );
+                this.#player = await response.json();
+            } catch (e) {
+                if (e instanceof TypeError) {
+                    // Ignore and retry update on the next completed lesson
+                } else {
+                    throw e;
+                }
+            }
+        }
     }
 }
 customElements.define("room-game", GameElement);

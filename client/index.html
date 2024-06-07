@@ -227,6 +227,9 @@
                     <button class="room-inventory-about">
                         <img class="icon" src="{{shell.url('images/info.png')}}" /> About Room
                     </button>
+                    <button class="room-inventory-howto">
+                        <img class="icon" src="{{shell.url('images/howto.png')}}" /> How to Play
+                    </button>
                     <button class="room-inventory-open-credits">Credits</button>
                 </room-inventory>
 
@@ -278,6 +281,25 @@
                         </label>
                     </form>
                 </room-editor>
+
+                <room-howto>
+                    <style>
+                        room-howto:not([tutorial]) .room-howto-start {
+                            display: none;
+                        }
+                    </style>
+
+                    <room-window-header>
+                        <h2>
+                            <img class="icon" src="{{shell.url('images/howto.png')}}" /> How to Play
+                        </h2>
+                    </room-window-header>
+                    <ul>
+                        <li><strong>Hold / Touch</strong> to move</li>
+                        <li><strong>Click / Tap</strong> to use items</li>
+                    </ul>
+                    <button type="button" class="room-howto-start">Start</button>
+                </room-howto>
 
                 <room-credits>
                     <style>
@@ -647,6 +669,10 @@
 
                 :host([close="back"]) .icon {
                     content: url("{{shell.url('images/back.png')}}");
+                }
+
+                :host([close="none"]) .room-window-header-close {
+                    display: none;
                 }
             </style>
 

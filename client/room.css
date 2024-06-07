@@ -71,6 +71,10 @@ h2 {
     font-weight: bold;
 }
 
+ul {
+    padding-left: 1lh;
+}
+
 /** Interactive: Interactive element, i.e. a button or input. */
 
 button:not(:first-child),

@@ -9,6 +9,13 @@
  */
 
 /**
+ * @typedef PrivatePlayerProperties
+ * @property {string} token
+ * @property {boolean} tutorial
+ * @typedef {PrivatePlayerProperties & Player} PrivatePlayer
+ */
+
+/**
  * @typedef Member
  * @property {string} id
  * @property {string} player_id

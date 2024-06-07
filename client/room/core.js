@@ -109,12 +109,16 @@ export class WindowHeaderElement extends HTMLElement {
     }
 
     /**
-     * Type of close control, either a close or a back button.
-     * @type {"close" | "back"}
+     * Type of close control, a close or back button or none.
+     * @type {"close" | "back" | "none"}
      */
     get close() {
         const value = this.getAttribute("close");
-        return value === "back" ? value : "close";
+        return value === "back" || value === "none" ? value : "close";
+    }
+
+    set close(value) {
+        this.setAttribute("close", value);
     }
 }
 customElements.define("room-window-header", WindowHeaderElement);

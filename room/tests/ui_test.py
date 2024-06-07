@@ -84,15 +84,10 @@ class UITest(TestCase):
         self.browser.get(f'http://{gethostname()}:8080')
         tile = self.wait.until(presence_of_element_located((By.CSS_SELECTOR, '.room-game-tile')))
 
-        # Finish intro
-        close_button = self.browser.find_element(By.CSS_SELECTOR, 'room-dialog button')
-        close_button.click()
-        self.assertEqual(self.browser.find_element(By.CSS_SELECTOR, 'room-dialog h2').text,
-                         'Welcome!')
-
-        # Finish tutorial
-        close_button.click()
-        self.assertFalse(close_button.is_displayed())
+        # Start tutorial
+        start_button = self.browser.find_element(By.CSS_SELECTOR, '.room-howto-start')
+        start_button.click()
+        self.assertFalse(start_button.is_displayed())
 
         # View inventory
         equipment = self.browser.find_element(By.CSS_SELECTOR, '.room-game-equipment')
