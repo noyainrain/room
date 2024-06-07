@@ -4,11 +4,11 @@ from collections.abc import Sequence
 from http import HTTPStatus
 from typing import Generic, TypeVar
 
-from aiohttp.web import HTTPNotFound, Request, Response, RouteTableDef
-from pydantic import BaseModel, TypeAdapter
+from aiohttp.web import HTTPBadRequest, HTTPNotFound, Request, Response, RouteTableDef
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from . import context
-from .core import Player
+from .core import Player, PrivatePlayer
 
 _T = TypeVar('_T')
 
@@ -18,10 +18,36 @@ _PlayerModel = TypeAdapter(Player)
 class _Collection(BaseModel, Generic[_T]): # type: ignore[misc]
     items: Sequence[_T]
 
+class Error(BaseModel): # type: ignore[misc]
+    """Error.
+
+    .. attribute:: message
+
+       Error message.
+    """
+
+    message: str
+
 def model_response(model: BaseModel, *, status: int = 200,
                    content_type: str = 'application/json') -> Response:
     """Generate a JSON web response from a *model*."""
     return Response(text=model.model_dump_json(), status=status, content_type=content_type)
+
+@api_routes.get('/players/self')
+async def _get_current_player(_: Request) -> Response:
+    return model_response(context.player.get())
+
+@api_routes.put('/players/self')
+async def _put_current_player(request: Request) -> Response:
+    data = await request.text()
+    try:
+        patch = PrivatePlayer.model_validate_json(data)
+    except ValidationError as e:
+        raise HTTPBadRequest(text=Error(message=f'Bad request ({e})').model_dump_json(),
+                             content_type='application/json') from e
+    player = context.player.get()
+    player.update(patch)
+    return model_response(player)
 
 @api_routes.get('/players/{id}')
 async def _get_player(request: Request) -> Response:

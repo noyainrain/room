@@ -767,7 +767,7 @@ class Game:
 
     def sign_in(self) -> PrivatePlayer:
         """Sign in a player."""
-        player = PrivatePlayer(id=randstr(), token=token_urlsafe())
+        player = PrivatePlayer(id=randstr(), token=token_urlsafe(), tutorial=False)
         self._add_player(player)
         return player
 

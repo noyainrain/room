@@ -104,6 +104,7 @@ class GameTest(TestCase):
     def test_sign_in(self) -> None:
         player = self.game.sign_in()
         self.assertIn(player.id, self.game.players)
+        self.assertFalse(player.tutorial)
 
     def test_authenticate(self) -> None:
         player = self.game.authenticate(self.player.token)
