@@ -859,6 +859,26 @@ class Game:
 
         If there is a problem reading from the data directory, an :exc:`OSError` is raised.
         """
+        await self.load()
+
+        logger = getLogger(__name__)
+        while True:
+            # pylint: disable=broad-exception-caught
+            try:
+                await sleep(self._SAVE_INTERVAL.total_seconds())
+            finally:
+                # Also save on exit, i.e. when the task is cancelled
+                try:
+                    self._save()
+                except OSError as e:
+                    logger.error('Failed to write to data directory (%s)', e)
+                except Exception:
+                    logger.exception('Unhandled error')
+
+    # OQ should this be public
+    # OQ should logging only happen in run?
+    async def load(self) -> None:
+        """..."""
         # Update marker
         if all(path.match('*.json') for path in self.data_path.iterdir()):
             (self.data_path / 'room').touch()
@@ -886,19 +906,6 @@ class Game:
                 self.rooms[room.id] = room
         logger.info('Loaded %d player(s) and %d room(s) (%.1fms)', len(self.players),
                     len(self.rooms), t() * 1000)
-
-        while True:
-            # pylint: disable=broad-exception-caught
-            try:
-                await sleep(self._SAVE_INTERVAL.total_seconds())
-            finally:
-                # Also save on exit, i.e. when the task is cancelled
-                try:
-                    self._save()
-                except OSError as e:
-                    logger.error('Failed to write to data directory (%s)', e)
-                except Exception:
-                    logger.exception('Unhandled error')
 
     def _save(self) -> None:
         with timer() as t:
