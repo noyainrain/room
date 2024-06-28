@@ -30,6 +30,7 @@ from pydantic import (BaseModel, Field, PrivateAttr, TypeAdapter, computed_field
                       field_validator, model_validator)
 
 from . import context
+from .effects import Cause, Effect, OpenDialogEffect
 from .core import Player, PrivatePlayer, Text
 from .util import open_image_data_url, randstr, timer
 
@@ -154,36 +155,6 @@ class MemberWithPlayer(Member): # type: ignore[misc]
     def player(self) -> Player:
         return super().player
 
-class Cause(BaseModel): # type: ignore[misc]
-    """Cause of a tile effect.
-
-    .. attribute:: type
-
-       Type of the cause.
-    """
-
-    type: str
-
-    def __hash__(self) -> int:
-        return hash(self.type)
-
-class Effect(BaseModel): # type: ignore[misc]
-    """Tile effect.
-
-    .. attribute:: type
-
-       Type of the effect.
-    """
-
-    type: str
-
-    async def apply(self, tile_index: int) -> Effect:
-        """Apply the effect to the tile at *tile_index*.
-
-        The applied effect with concrete result details is returned.
-        """
-        raise NotImplementedError()
-
 class UseCause(Cause): # type: ignore[misc]
     """Cause of using a tile."""
 
@@ -254,7 +225,8 @@ class FollowLinkEffect(Effect): # type: ignore[misc]
         return self.model_copy(update={'link': link}) # type: ignore[misc]
 
 AnyCause = Annotated[Union[UseCause], Field(discriminator='type')]
-AnyEffect = Annotated[Union[TransformTileEffect, FollowLinkEffect], Field(discriminator='type')]
+AnyEffect = Annotated[Union[TransformTileEffect, OpenDialogEffect, FollowLinkEffect],
+                      Field(discriminator='type')]
 
 class Tile(BaseModel): # type: ignore[misc]
     """Room tile.
@@ -378,14 +350,14 @@ class OfflineRoom(BaseRoom): # type: ignore[misc]
 
     tile_ids: Annotated[list[str], Field(min_length=WIDTH * HEIGHT, max_length=WIDTH * HEIGHT)]
     blueprints: dict[str, Tile]
-    version: Literal['0.5']
+    version: Literal['0.6']
 
     @model_validator(mode='before')
     @classmethod
     def _check(cls, data: dict[str, object]) -> dict[str, object]:
         # Update version
-        if data.get('version') in {None, '0.1', '0.2', '0.3', '0.4'}:
-            data['version'] = '0.5'
+        if data.get('version') in {None, '0.1', '0.2', '0.3', '0.4', '0.5'}:
+            data['version'] = '0.6'
 
         # Update size (0.3)
         source = data.get('tile_ids')
@@ -731,6 +703,17 @@ DEFAULT_BLUEPRINTS = {
             'BJRU5ErkJggg==',
         wall=True,
         effects={UseCause(): [FollowLinkEffect(url='https://discord.gg/Jey5jCJy2T', link=None)]}
+    ),
+    'object-sign': Tile(
+        id='object-sign',
+        image=
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQUlEQVQYV42OUQoA'
+            'IAhD5yHtkO6QpUGRYNH+Bm+PCQwdj0gAxppoCmyA8HZEQSSgclwNsY78G5Ze6VvNj+fJFzAAkuAhUZTmMa4AAA'
+            'AASUVORK5CYII=',
+        wall=True,
+        effects={
+            UseCause(): [OpenDialogEffect(message="A room to shape to one's heart's content.")]
+        }
     )
 }
 
@@ -790,7 +773,7 @@ class Game:
         room = OnlineRoom(
             id=randstr(), title='New Room', description=None,
             tile_ids=['void'] * (OfflineRoom.WIDTH * OfflineRoom.HEIGHT), blueprints=blueprints,
-            version='0.5')
+            version='0.6')
         self.rooms[room.id] = room
         return room
 

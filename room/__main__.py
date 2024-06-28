@@ -26,7 +26,8 @@ from pydantic import TypeAdapter, ValidationError
 
 from . import context
 from .core import Text
-from .game import Action, Effect, FailedAction, FollowLinkEffect, Game, Member, OnlineRoom
+from .effects import Effect
+from .game import Action, FailedAction, FollowLinkEffect, Game, Member, OnlineRoom
 from .server import api_routes
 from .util import WSMessage, cancel, template, timer
 
