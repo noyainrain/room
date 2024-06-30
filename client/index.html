@@ -633,11 +633,7 @@
                     </form>
                 </room-blueprint-effects>
 
-                <room-dialog>
-                    <h2></h2>
-                    <p></p>
-                    <button></button>
-                </room-dialog>
+                <div class="room-game-dialogs"></div>
 
                 <room-window class="room-game-connection">
                     <p>Connecting…</p>
@@ -687,6 +683,18 @@
 
         <template id="tile-item-template">
             <li tabindex="0"><img class="tile" /></li>
+        </template>
+
+        <template id="room-dialog-template">
+            <style>
+                room-dialog room-window-header:has(h2:empty) {
+                    display: none;
+                }
+            </style>
+
+            <room-window-header close="none"><h2></h2></room-window-header>
+            <p></p>
+            <button>Okay</button>
         </template>
 
         <template id="room-cause-template">

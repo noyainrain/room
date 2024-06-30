@@ -4,7 +4,7 @@ import {WindowElement, WindowHeaderElement, getGame, renderTileItem, request} fr
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.8.0";
+const VERSION = "0.8.1";
 
 /**
  * Player inventory window.
@@ -406,26 +406,67 @@ customElements.define("room-blueprint", BlueprintElement);
 
 /** Dialog window. */
 class DialogElement extends WindowElement {
-    #h2 = querySelector(this, "h2");
-    #p = querySelector(this, "p");
-    #button = querySelector(this, "button");
+    /** @type {HTMLHeadingElement} */
+    #h2;
+    /** @type {HTMLParagraphElement} */
+    #p;
+    /** @type {HTMLButtonElement} */
+    #button;
 
     constructor() {
         super();
+        this.append(
+            querySelector(document, "#room-dialog-template", HTMLTemplateElement).content.cloneNode(true)
+        );
+        this.#h2 = querySelector(this, "h2");
+        this.#p = querySelector(this, "p");
+        this.#button = querySelector(this, "button");
         this.#button.addEventListener("click", () => this.close());
     }
 
     /**
-     * Open a dialog.
-     * @param {string} [title] - Message title
-     * @param {string} [text] - Message text
-     * @param {string} [reply] - Suggested player reply
+     * Message text.
+     * @type {string}
      */
-    async open(title = "", text = "", reply = "Okay") {
-        this.#h2.textContent = title;
-        this.#p.textContent = text;
-        this.#button.textContent = reply;
-        return super.open();
+    get text() {
+        if (this.#p.textContent === null) {
+            throw new AssertionError();
+        }
+        return this.#p.textContent;
+    }
+
+    set text(value) {
+        this.#p.textContent = value;
+    }
+
+    /**
+     * Message title.
+     * @type {string}
+     */
+    get caption() {
+        if (this.#h2.textContent === null) {
+            throw new AssertionError();
+        }
+        return this.#h2.textContent;
+    }
+
+    set caption(value) {
+        this.#h2.textContent = value;
+    }
+
+    /**
+     * Suggested player reply.
+     * @type {string}
+     */
+    get reply() {
+        if (this.#button.textContent === null) {
+            throw new AssertionError();
+        }
+        return this.#button.textContent;
+    }
+
+    set reply(value) {
+        this.#button.textContent = value;
     }
 }
 customElements.define("room-dialog", DialogElement);
@@ -541,9 +582,6 @@ export class GameElement extends HTMLElement {
     /** Blueprint effects editor window. */
     blueprintEffectsWindow = querySelector(this, "room-blueprint-effects", BlueprintEffectsElement);
 
-    /** Dialog window. */
-    dialogWindow = querySelector(this, "room-dialog", DialogElement);
-
     /** @type {?PrivatePlayer} */
     #player = null;
     /** @type {Tile[]} */
@@ -572,6 +610,7 @@ export class GameElement extends HTMLElement {
     /** @type {?EntityElement} */
     #memberElement = null;
     #itemElement = querySelector(this, ".room-game-item", EntityElement);
+    #dialogsElement = querySelector(this, ".room-game-dialogs");
     #connectionWindow = querySelector(this, ".room-game-connection", WindowElement);
 
     /** @type {Router<void>} */
@@ -588,10 +627,10 @@ export class GameElement extends HTMLElement {
     constructor() {
         super();
 
-        const showError = () => this.dialogWindow.open(
-            "Error",
+        const showError = () => this.openDialog(
             "Oops, something went very wrong! We will fix the problem as soon as possible. " +
-            "Meanwhile, you may try again."
+            "Meanwhile, you may try again.",
+            {caption: "Error"}
         );
         addEventListener("error", showError);
         addEventListener("unhandledrejection", showError);
@@ -855,6 +894,25 @@ export class GameElement extends HTMLElement {
     }
 
     /**
+     * Open a dialog.
+     *
+     * Return once the dialog is closed.
+     * @param {string} text - Message text
+     * @param {Object} [options] - Options
+     * @param {string} [options.caption] - Message title
+     * @param {string} [options.reply] - Suggested player reply
+     */
+    async openDialog(text, {caption = "", reply = "Okay"} = {}) {
+        const dialog = new DialogElement();
+        dialog.text = text;
+        dialog.caption = caption;
+        dialog.reply = reply;
+        this.#dialogsElement.append(dialog);
+        await dialog.open();
+        dialog.remove();
+    }
+
+    /**
      * @param {number | DOMPoint} index
      * @returns {?HTMLDivElement}
      */
@@ -933,7 +991,9 @@ export class GameElement extends HTMLElement {
             this.#socket.addEventListener("close", async event => {
                 this.#connectionWindow.close();
                 if (event.code === 4004) {
-                    this.dialogWindow.open("Unknown Room", `Oops, there is no room #${roomID}!`);
+                    this.openDialog(
+                        `Oops, there is no room #${roomID}!`, {caption: "Unknown Room"}
+                    );
                 } else if ([1001, 1006].includes(event.code)) {
                     this.#connect(roomID, {delay: 1});
                 } else {

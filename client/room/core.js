@@ -34,12 +34,10 @@ export function request(func) {
             await func(...args);
         } catch (e) {
             if (e instanceof TypeError) {
-                const game = /** @type {import("game").GameElement } */ (
-                    document.querySelector("room-game")
-                );
-                game.dialogWindow.open(
-                    "Offline",
-                    "Oops, Room is offline. Please check your network connection and try again."
+                const game = await getGame();
+                game.openDialog(
+                    "Oops, Room is offline. Please check your network connection and try again.",
+                    {caption: "Offline"}
                 );
             } else {
                 throw e;
@@ -59,7 +57,11 @@ export class WindowElement extends HTMLElement {
         this.classList.add("room-window");
     }
 
-    /** Open the window. */
+    /**
+     * Open the window.
+     *
+     * Return once the window is closed.
+     */
     async open() {
         this.classList.add("room-window-open");
         return new Promise(resolve => this.addEventListener("close", resolve, {once: true}));
