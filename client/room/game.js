@@ -4,7 +4,7 @@ import {WindowElement, WindowHeaderElement, getGame, renderTileItem, request} fr
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.8.1";
+const VERSION = "0.8.2";
 
 /**
  * Player inventory window.
@@ -597,9 +597,13 @@ export class GameElement extends HTMLElement {
      * @callback ApplyEffectCallback
      * @param {Effect} effect
      * @param {number} tileIndex
+     * @param {Member} member
      * @type {Object<string, ApplyEffectCallback>}
      */
-    #effects = {TransformTileEffect: this.#applyTransformTileEffect.bind(this)};
+    #effects = {
+        TransformTileEffect: this.#applyTransformTileEffect.bind(this),
+        OpenDialogEffect: this.#applyOpenDialogEffect.bind(this)
+    };
 
     #tilesElement = querySelector(this, ".room-game-tiles");
     #tileTemplate = querySelector(this, ".room-game-tile-template", HTMLTemplateElement);
@@ -1070,10 +1074,14 @@ export class GameElement extends HTMLElement {
 
     /** @param {UseAction} action */
     #use(action) {
+        const member = this.#members.get(action.member_id);
+        if (!member) {
+            throw new AssertionError();
+        }
         for (const effect of action.effects) {
             const apply = this.#effects[effect.type];
             if (apply) {
-                apply(effect, action.tile_index);
+                apply(effect, action.tile_index, member);
             } else {
                 console.warn("Unknown effect %s", effect.type);
             }
@@ -1125,10 +1133,7 @@ export class GameElement extends HTMLElement {
         memberElement.position = position;
     }
 
-    /**
-     * @param {Effect} effect
-     * @param {number} tileIndex
-     */
+    /** @type {ApplyEffectCallback} */
     #applyTransformTileEffect(effect, tileIndex) {
         if (effect.type !== "TransformTileEffect") {
             throw new AssertionError();
@@ -1139,6 +1144,22 @@ export class GameElement extends HTMLElement {
         }
         this.#tiles[tileIndex] = tile;
         this.#updateTileElement(tileIndex);
+    }
+
+    /** @type {ApplyEffectCallback} */
+    #applyOpenDialogEffect(effect, tileIndex, member) {
+        if (effect.type !== "OpenDialogEffect") {
+            throw new AssertionError();
+        }
+        if (member.id !== this.member?.id) {
+            return;
+        }
+        (async () => {
+            const lines = effect.message.split("\n").flatMap(line => line.trim() || []);
+            for (const [i, line] of lines.entries()) {
+                await this.openDialog(line, {reply: i === lines.length - 1 ? "Okay" : "Continue"});
+            }
+        })();
     }
 
     #tick() {

@@ -40,13 +40,19 @@
  */
 
 /**
+ * @typedef OpenDialogEffect
+ * @property {"OpenDialogEffect"} type
+ * @property {string} message
+ */
+
+/**
  * @typedef OtherEffect
  * @property {"*"} type;
  */
 
 /** @typedef {UseCause | OtherCause} Cause */
 
-/** @typedef {TransformTileEffect | OtherEffect} Effect */
+/** @typedef {TransformTileEffect | OpenDialogEffect | OtherEffect} Effect */
 
 /**
  * @typedef Tile

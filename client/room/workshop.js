@@ -171,7 +171,9 @@ class EffectListElement extends HTMLElement {
      * @returns {EffectElement}
      */
     #renderEffect(effect) {
-        const elements = {TransformTileEffect: TransformTileEffectElement, "*": undefined};
+        const elements = /** @type {Object<string, typeof EffectElement>} */ ({
+            TransformTileEffect: TransformTileEffectElement
+        });
         const Element = elements[effect.type] ?? EffectElement;
         const element = new Element();
         element.classList.add("card");
