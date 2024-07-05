@@ -1,7 +1,7 @@
 /** Blueprint workshop UI. */
 
 import {WindowElement, renderTileItem} from "core";
-import {AssertionError, chunk, querySelector} from "util";
+import {AssertionError, WithPattern, chunk, querySelector} from "util";
 
 /** Blueprint effects editor window. */
 export class BlueprintEffectsElement extends WindowElement {
@@ -130,6 +130,15 @@ class EffectListElement extends HTMLElement {
                 event.currentTarget.blur();
             }
         );
+        querySelector(this, ".room-effect-list-open-dialog-effect").addEventListener(
+            "click", event => {
+                this.#addItem({type: "OpenDialogEffect", message: ""});
+                if (!(event.currentTarget instanceof HTMLLIElement)) {
+                    throw new AssertionError();
+                }
+                event.currentTarget.blur();
+            }
+        );
         this.#updateInput();
     }
 
@@ -172,7 +181,8 @@ class EffectListElement extends HTMLElement {
      */
     #renderEffect(effect) {
         const elements = /** @type {Object<string, typeof EffectElement>} */ ({
-            TransformTileEffect: TransformTileEffectElement
+            TransformTileEffect: TransformTileEffectElement,
+            OpenDialogEffect: OpenDialogEffectElement
         });
         const Element = elements[effect.type] ?? EffectElement;
         const element = new Element();
@@ -349,3 +359,32 @@ class TransformTileEffectElement extends EffectElement {
     }
 }
 customElements.define("room-transform-tile-effect", TransformTileEffectElement);
+
+/** Open dialog effect form. */
+class OpenDialogEffectElement extends EffectElement {
+    /** @type {HTMLTextAreaElement} */
+    #textArea;
+
+    constructor() {
+        super();
+        this.replaceChildren(
+            querySelector(
+                document, "#room-open-dialog-effect-template", HTMLTemplateElement
+            ).content.cloneNode(true)
+        );
+        this.#textArea = querySelector(this, "textarea");
+        new WithPattern(this.#textArea, /.*\S.*/s);
+    }
+
+    /** @type {OpenDialogEffect} */
+    get effect() {
+        return {type: "OpenDialogEffect", message: this.#textArea.value};
+    }
+
+    set effect(value) {
+        this.#textArea.value = value.message;
+        // Trigger pattern validation
+        this.#textArea.dispatchEvent(new InputEvent("input"));
+    }
+}
+customElements.define("room-open-dialog-effect", OpenDialogEffectElement);

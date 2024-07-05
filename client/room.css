@@ -208,7 +208,7 @@ small.task {
     color: var(--room-color-task);
 }
 
-input:valid + small.task {
+:is(input, textarea):valid + small.task {
     display: none;
 }
 

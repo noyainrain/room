@@ -125,6 +125,37 @@ export async function emitParticle(element, start, end) {
     );
 }
 
+/** Extension for :class:`HTMLTextAreaElement` conforming to a pattern. */
+export class WithPattern {
+    /**
+     * Extended element.
+     * @type {HTMLTextAreaElement}
+     */
+    textArea;
+    /**
+     * Required pattern.
+     * @type {RegExp}
+     */
+    pattern;
+
+    /**
+     * @param {HTMLTextAreaElement} textArea
+     * @param {RegExp | string} pattern
+     */
+    constructor(textArea, pattern) {
+        this.textArea = textArea;
+        this.pattern = new RegExp(pattern);
+        this.textArea.addEventListener("input", () => this.#validate());
+        this.#validate();
+    }
+
+    #validate() {
+        const valid = !this.textArea.value ||
+            this.pattern.exec(this.textArea.value)?.[0] === this.textArea.value;
+        this.textArea.setCustomValidity(valid ? "" : "Please match the requested format.");
+    }
+}
+
 /**
  * Query with arguments.
  *

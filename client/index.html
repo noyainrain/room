@@ -523,6 +523,10 @@
                             margin: unset;
                         }
 
+                        room-effect-header + label:not(:first-child) {
+                            border-top: unset;
+                        }
+
                         .room-blueprint-effects-add-cause::after {
                             visibility: hidden;
                         }
@@ -565,6 +569,16 @@
                                         align-self: start;
                                     }
 
+                                    dd:first-of-type .room-effect-list-add-effect:first-child ul {
+                                        /* Emulate sticky top */
+                                        top: calc(-1lh - 2 * var(--room-size-gap) - var(--room-size-border));
+                                        bottom: unset;
+                                    }
+
+                                    .room-effect-list-add-effect li:not(:first-child) {
+                                        border-top: var(--room-size-border) solid var(--room-color-text);
+                                    }
+
                                     .room-effect-list-check {
                                         display: none;
                                     }
@@ -575,7 +589,9 @@
                                 </style>
 
                                 <ul>
-                                    <li class="room-effect-list-add-effect contextual">
+                                    <li
+                                        class="room-effect-list-add-effect contextual contextual-reversed"
+                                    >
                                         <p class="card" tabindex="0">
                                             <img
                                                 class="icon" src="{{shell.url('images/add.png')}}"
@@ -591,7 +607,18 @@
                                                 <img
                                                     class="icon"
                                                     src="{{shell.url('images/transform-tile-effect.png')}}"
+                                                    alt=""
                                                 /> Transform
+                                            </li>
+                                            <li
+                                                class="room-effect-list-open-dialog-effect"
+                                                tabindex="0"
+                                            >
+                                                <img
+                                                    class="icon"
+                                                    src="{{shell.url('images/open-dialog-effect.png')}}"
+                                                    alt=""
+                                                /> Open Dialog
                                             </li>
                                         </ul>
                                     </li>
@@ -756,13 +783,31 @@
             </style>
 
             <room-effect-header>
-                <img class="icon" src="{{shell.url('images/transform-tile-effect.png')}}" />
+                <img class="icon" src="{{shell.url('images/transform-tile-effect.png')}}" alt="" />
                 Transform
             </room-effect-header>
             <div class="room-transform-tile-effect-blueprint contextual">
                 <p tabindex="0"><img class="tile" /></p>
                 <ul></ul>
             </div>
+        </template>
+
+        <template id="room-open-dialog-effect-template">
+            <style>
+                room-open-dialog-effect {
+                    display: block;
+                }
+            </style>
+
+            <room-effect-header>
+                <img class="icon" src="{{shell.url('images/open-dialog-effect.png')}}" alt="" />
+                Open Dialog
+            </room-effect-header>
+            <label>
+                <small>Message</small>
+                <textarea name="message" required="required"></textarea>
+                <small class="task">Enter a message</small>
+            </label>
         </template>
     </body>
 </html>
