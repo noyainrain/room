@@ -1,6 +1,7 @@
 PYTHON=python3
 PIP=pip3
 PIPFLAGS=--upgrade
+PYLINTFLAGS=
 NPM=npm
 NPMFLAGS=--no-save
 
@@ -19,7 +20,7 @@ type:
 
 .PHONY: lint
 lint:
-	pylint room
+	pylint $(PYLINTFLAGS) room
 	$(NPM) --prefix=client run lint
 
 .PHONY: check
