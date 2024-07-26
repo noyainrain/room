@@ -15,8 +15,9 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.options import ArgOptions
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support.expected_conditions import (presence_of_element_located,
-                                                            text_to_be_present_in_element_attribute)
+from selenium.webdriver.support.expected_conditions import (
+    presence_of_element_located, text_to_be_present_in_element,
+    text_to_be_present_in_element_attribute)
 from selenium.webdriver.support.wait import WebDriverWait
 
 from room.game import OnlineRoom, Tile, DEFAULT_BLUEPRINTS
@@ -104,8 +105,18 @@ class UITest(TestCase):
             equipment.find_element(By.CSS_SELECTOR, 'img').get_property('src'), # type: ignore[misc]
             DEFAULT_BLUEPRINTS['wall-door-closed'].image)
 
-        # View about room
+        # Update player
         equipment.click()
+        self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-player').click()
+        form = self.browser.find_element(By.CSS_SELECTOR, 'room-player-editor form')
+        name_input = form.find_element(By.NAME, 'name')
+        name_input.clear()
+        name_input.send_keys('Frank')
+        form.find_element(By.CSS_SELECTOR, 'button:not([type])').click()
+        self.wait.until(
+            text_to_be_present_in_element((By.CSS_SELECTOR, '.room-inventory-player'), 'Frank'))
+
+        # View about room
         self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-about').click()
         about_h2 = self.browser.find_element(By.CSS_SELECTOR, 'room-about h2')
         self.assertEqual(about_h2.text, 'New Room')

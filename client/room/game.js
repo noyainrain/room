@@ -4,7 +4,7 @@ import {WindowElement, WindowHeaderElement, getGame, renderTileItem, request} fr
 import {AssertionError, Router, Vector, emitParticle, querySelector} from "util";
 import {BlueprintEffectsElement} from "workshop";
 
-const VERSION = "0.9.0";
+const VERSION = "0.9.1";
 
 /**
  * Player inventory window.
@@ -47,6 +47,23 @@ class InventoryElement extends WindowElement {
             const game = await getGame();
             game.creditsWindow.open();
             this.close();
+        });
+        querySelector(this, ".room-inventory-player").addEventListener("click", async () => {
+            const game = await getGame();
+            game.playerEditorWindow.open();
+        });
+    }
+
+    async connectedCallback() {
+        const game = await getGame();
+        const playerImg = querySelector(this, ".room-inventory-player img", HTMLImageElement);
+        const playerSpan = querySelector(this, ".room-inventory-player span");
+        game.addEventListener("playerupdate", event => {
+            if (!(event instanceof PlayerEvent)) {
+                throw new AssertionError();
+            }
+            playerImg.src = GameElement.MEMBER_IMAGE;
+            playerSpan.textContent = event.player.name;
         });
     }
 
@@ -217,6 +234,39 @@ class CreditsElement extends WindowElement {
     }
 }
 customElements.define("room-credits", CreditsElement);
+
+/** Player editor window. */
+class PlayerEditorElement extends WindowElement {
+    #nameInput = querySelector(this, '[name="name"]', HTMLInputElement);
+
+    constructor() {
+        super();
+        const form = querySelector(this, "form", HTMLFormElement);
+        form.addEventListener("submit", request(
+            /** @param {SubmitEvent} event */
+            async event => {
+                event.preventDefault();
+                if (form.checkValidity()) {
+                    const game = await getGame();
+                    await game.updatePlayer({
+                        id: game.player.id,
+                        token: game.player.token,
+                        name: this.#nameInput.value,
+                        tutorial: game.player.tutorial
+                    });
+                    this.close();
+                }
+            }
+        ));
+    }
+
+    async open() {
+        const game = await getGame();
+        this.#nameInput.value = game.player.name;
+        await super.open();
+    }
+}
+customElements.define("room-player-editor", PlayerEditorElement);
 
 /** Workshop window. */
 class WorkshopElement extends WindowElement {
@@ -522,11 +572,13 @@ customElements.define("room-entity", EntityElement);
  * @fires {ActionEvent#MoveMemberAction}
  */
 export class GameElement extends HTMLElement {
+    /** Member avatar URL. */
+    static MEMBER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII=";
+
     static #ROOM_WIDTH = 16;
     static #ROOM_HEIGHT = 9;
     // In px
     static #TILE_SIZE = 8;
-    static #MEMBER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVQYV2NkIAAYkeVD////D+KvZmSEi8MZIMnVq1eD1YeGhsIVgRUgS8JMhCkiTgG6KRhWwI3F50hcvgUA66okCTKgZHUAAAAASUVORK5CYII=";
     // In px / s
     static #MEMBER_SPEED = GameElement.#ROOM_HEIGHT / 2 * GameElement.#TILE_SIZE;
     // Two tiles horizontally, one vertically
@@ -572,6 +624,9 @@ export class GameElement extends HTMLElement {
 
     /** Credits window. */
     creditsWindow = querySelector(this, "room-credits", CreditsElement);
+
+    /** Player editor window. */
+    playerEditorWindow = querySelector(this, "room-player-editor", PlayerEditorElement);
 
     /** Workshop window. */
     workshopWindow = querySelector(this, "room-workshop", WorkshopElement);
@@ -840,6 +895,7 @@ export class GameElement extends HTMLElement {
         async () => {
             const response = await fetch("/api/players/self");
             this.#player = await response.json();
+            this.dispatchEvent(new PlayerEvent("playerupdate", this.player));
 
             // Compatibility with legacy invite links
             if (location.pathname === "/" && location.hash) {
@@ -895,6 +951,18 @@ export class GameElement extends HTMLElement {
                 throw e;
             }
         }
+    }
+
+    /**
+     * Update the current player.
+     * @param {PrivatePlayer} patch - Player patch
+     */
+    async updatePlayer(patch) {
+        const response = await fetch(
+            "/api/players/self", {method: "PUT", body: JSON.stringify(patch)}
+        );
+        this.#player = await response.json();
+        this.dispatchEvent(new PlayerEvent("playerupdate", this.player));
     }
 
     /**
@@ -1117,7 +1185,8 @@ export class GameElement extends HTMLElement {
         // Join
         if (!memberElement) {
             const member = {
-                id: action.member_id, player_id: "", player: {id: ""}, position: action.position
+                id: action.member_id, player_id: "", player: {id: "", name: ""},
+                position: action.position
             };
             this.#members.set(member.id, member);
             memberElement = this.#spawnMember(member);
@@ -1267,7 +1336,7 @@ export class GameElement extends HTMLElement {
         memberElement.classList.add("room-game-member");
         memberElement.style.setProperty("--room-game-member-hover-delay", Math.random().toString());
         memberElement.position = new DOMPoint(...member.position);
-        memberElement.image = GameElement.#MEMBER_IMAGE;
+        memberElement.image = GameElement.MEMBER_IMAGE;
         this.#tilesElement.after(memberElement);
         this.#memberElements.set(member.id, memberElement);
         return memberElement;
@@ -1292,11 +1361,7 @@ export class GameElement extends HTMLElement {
         this.#lessons.delete(lesson);
         if (this.#lessons.size === 0 && !this.player.tutorial) {
             try {
-                const response = await fetch(
-                    "/api/players/self",
-                    {method: "PUT", body: JSON.stringify({...this.player, tutorial: true})}
-                );
-                this.#player = await response.json();
+                await this.updatePlayer({...this.player, tutorial: true});
             } catch (e) {
                 if (e instanceof TypeError) {
                     // Ignore and retry update on the next completed lesson
@@ -1324,5 +1389,23 @@ class ActionEvent extends Event {
     constructor(action) {
         super(action.type);
         this.action = action;
+    }
+}
+
+/** Event about a player. */
+class PlayerEvent extends Event {
+    /**
+     * Relevant player.
+     * @type {PrivatePlayer}
+     */
+    player;
+
+    /**
+     * @param {string} type
+     * @param {PrivatePlayer} player
+     */
+    constructor(type, player) {
+        super(type);
+        this.player = player;
     }
 }

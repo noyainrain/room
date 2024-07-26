@@ -225,12 +225,17 @@
                     <button class="room-inventory-open-workshop">Open Workshop</button>
                     <a class="block">Invite Link: <span></span></a>
                     <button class="room-inventory-about">
-                        <img class="icon" src="{{shell.url('images/info.png')}}" /> About Room
+                        <img class="icon" src="{{shell.url('images/info.png')}}" alt="" />
+                        About Room
                     </button>
                     <button class="room-inventory-howto">
-                        <img class="icon" src="{{shell.url('images/howto.png')}}" /> How to Play
+                        <img class="icon" src="{{shell.url('images/howto.png')}}" alt="" />
+                        How to Play
                     </button>
                     <button class="room-inventory-open-credits">Credits</button>
+                    <button type="button" class="room-inventory-player">
+                        <img class="icon" src="" alt="" /> <span></span>
+                    </button>
                 </room-inventory>
 
                 <room-about>
@@ -333,6 +338,28 @@
                         Source Code
                     </a>
                 </room-credits>
+
+                <room-player-editor>
+                    <form novalidate="novalidate">
+                        <room-window-header>
+                            <h2>
+                                <img class="icon" src="{{shell.url('images/edit.png')}}" alt="" />
+                                Edit Profile
+                            </h2>
+                            <button slot="menu">
+                                <img class="icon" src="{{shell.url('images/done.png')}}" alt="" />
+                                Done
+                            </button>
+                        </room-window-header>
+                        <label>
+                            <small>Name / Nick Name</small>
+                            <input
+                                name="name" required="required" pattern=".*\S.*" autocomplete="off"
+                            />
+                            <small class="task">Enter a name</small>
+                        </label>
+                    </form>
+                </room-player-editor>
 
                 <room-workshop>
                     <style>

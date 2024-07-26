@@ -6,6 +6,7 @@
 /**
  * @typedef Player
  * @property {string} id
+ * @property {string} name
  */
 
 /**
