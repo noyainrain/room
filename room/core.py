@@ -19,9 +19,22 @@ class Player(BaseModel): # type: ignore[misc]
     .. attribute: id
 
        Unique player ID.
+
+    .. attribute:: name
+
+       Name or nick name.
     """
 
     id: str
+    name: Text
+
+    @model_validator(mode='before')
+    @classmethod
+    def _check(cls, data: dict[str, object]) -> dict[str, object]:
+        # Update name
+        if 'name' not in data:
+            data['name'] = 'Guest'
+        return data
 
 class PrivatePlayer(Player): # type: ignore[misc]
     """Private view of the player.
@@ -41,6 +54,7 @@ class PrivatePlayer(Player): # type: ignore[misc]
     @model_validator(mode='before')
     @classmethod
     def _check(cls, data: dict[str, object]) -> dict[str, object]:
+        data = super()._check(data) # type: ignore[operator]
         # Update tutorial
         if 'tutorial' not in data:
             data['tutorial'] = False
@@ -51,4 +65,5 @@ class PrivatePlayer(Player): # type: ignore[misc]
 
         :attr:`id` and :attr:`token` are immutable and ignored.
         """
+        self.name = patch.name
         self.tutorial = patch.tutorial

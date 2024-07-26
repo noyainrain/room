@@ -33,9 +33,9 @@ class ServerTestCase(TestCase):
 
 class PutCurrentPlayerTest(ServerTestCase):
     async def test(self) -> None:
-        patch = self.player.model_copy(update={'tutorial': True}) # type: ignore[misc]
+        patch = self.player.model_copy(update={'name': 'Frank'}) # type: ignore[misc]
         player = await self.request('PUT', '/api/players/self', PrivatePlayer, obj=patch)
-        self.assertTrue(player.tutorial)
+        self.assertEqual(player.name, 'Frank')
 
 class PostRoomTest(ServerTestCase):
     async def test(self) -> None:

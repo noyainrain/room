@@ -12,6 +12,7 @@ from importlib import resources
 import logging
 from logging import getLogger
 from pathlib import Path
+import re
 from typing import Generic, TypeVar, Union, cast, get_type_hints
 from urllib.parse import urlsplit, urlunsplit
 
@@ -46,6 +47,9 @@ ui_routes = RouteTableDef()
 _PlayerModel = TypeAdapter(Player)
 _ErrorModel = TypeAdapter(Text)
 _AnyActionModel: TypeAdapter[_AnyAction] = TypeAdapter(_AnyAction)
+
+def _escape_whitespace(text: str) -> str:
+    return re.sub(r'\s', '·', text)
 
 class _Collection(BaseModel, Generic[_T]): # type: ignore[misc]
     items: Sequence[_T]
@@ -149,8 +153,10 @@ async def _get_room_actions(request: Request) -> WebSocketResponse:
         task = create_task(write())
 
         room_members = [count for room in game.rooms.values() if (count := len(room.members))]
-        logger.info('%s %s GET %s … (%d client(s) in %d room(s))', request.remote, member.player.id,
-                    request.rel_url, sum(room_members), len(room_members))
+        logger.info(
+            '%s %s %s GET %s … (%d client(s) in %d room(s))', request.remote, member.player.id,
+            _escape_whitespace(member.player.name), request.rel_url, sum(room_members),
+            len(room_members))
 
         async for message in cast(AsyncIterable[WSMessage], websocket):
             with timer() as t:
@@ -181,8 +187,9 @@ async def _get_room_actions(request: Request) -> WebSocketResponse:
                         FailedAction(member_id=member.id, message=error).model_dump_json())
             if not isinstance(action, Member.MoveMemberAction):
                 logger.log(
-                    logging.WARNING if error else logging.INFO, '%s %s %s @%s %s (%.1fms)',
-                    request.remote, member.player.id, action.type if action else 'Action', room.id,
+                    logging.WARNING if error else logging.INFO, '%s %s %s %s %s %s %s (%.1fms)',
+                    request.remote, member.player.id, _escape_whitespace(member.player.name),
+                    action.type if action else 'Action', room.id, _escape_whitespace(room.title),
                     'error' if error else 'ok', t() * 1000)
         await cancel(task)
 
@@ -295,8 +302,9 @@ class _Logger(AbstractAccessLogger):
     def log(self, request: BaseRequest, response: StreamResponse, time: float) -> None:
         player = context.player.get(None)
         getLogger(__name__).log(
-            logging.WARNING if response.status >= 400 else logging.INFO, '%s %s %s %s %d (%.1fms)',
-            request.remote, player.id if player else '-', request.method, request.rel_url,
+            logging.WARNING if response.status >= 400 else logging.INFO,
+            '%s %s %s %s %s %d (%.1fms)', request.remote, player.id if player else '-',
+            _escape_whitespace(player.name) if player else '-', request.method, request.rel_url,
             response.status, time * 1000)
 
 class Server:
