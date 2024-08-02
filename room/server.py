@@ -116,7 +116,7 @@ async def _post_room(_: Request) -> Response:
 @api_routes.get('/rooms/{id}')
 async def _get_room(request: Request) -> Response:
     try:
-        room = context.game.get().rooms[request.match_info['id']]
+        room = context.game.get().get_room(request.match_info['id'])
     except KeyError as e:
         raise HTTPNotFound(text='{}', content_type='application/json') from e
     return model_response(room, content_type=room.MEDIA_TYPE)
@@ -124,7 +124,7 @@ async def _get_room(request: Request) -> Response:
 @api_routes.get('/rooms/{id}/members')
 async def _get_room_members(request: Request) -> Response:
     try:
-        room = context.game.get().rooms[request.match_info['id']]
+        room = context.game.get().get_room(request.match_info['id'])
     except KeyError as e:
         raise HTTPNotFound(text='{}', content_type='application/json') from e
     return model_response(_Collection(items=room.with_members().members))
@@ -140,7 +140,7 @@ async def _get_room_actions(request: Request) -> WebSocketResponse:
     game = context.game.get()
     room_id = request.match_info['id']
     try:
-        room = game.rooms[room_id]
+        room = game.get_room(room_id)
     except KeyError:
         await websocket.close(code=_CLOSE_CODE_UNKNOWN_ROOM)
         return websocket
@@ -152,11 +152,10 @@ async def _get_room_actions(request: Request) -> WebSocketResponse:
                 await websocket.send_str(action.model_dump_json())
         task = create_task(write())
 
-        room_members = [count for room in game.rooms.values() if (count := len(room.members))]
         logger.info(
             '%s %s %s GET %s … (%d client(s) in %d room(s))', request.remote, member.player.id,
-            _escape_whitespace(member.player.name), request.rel_url, sum(room_members),
-            len(room_members))
+            _escape_whitespace(member.player.name), request.rel_url, len(websockets),
+            game.get_overview().online_rooms)
 
         async for message in cast(AsyncIterable[WSMessage], websocket):
             with timer() as t:

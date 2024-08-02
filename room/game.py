@@ -110,7 +110,7 @@ class Member(BaseModel): # type: ignore[misc]
     @property
     def room(self) -> OnlineRoom:
         """Relevant room."""
-        return context.game.get().rooms[self.room_id]
+        return context.game.get().get_room(self.room_id)
 
     async def actions(self) -> AsyncGenerator[Action, None]:
         """Stream of actions intended for the member."""
@@ -717,6 +717,26 @@ DEFAULT_BLUEPRINTS = {
     )
 }
 
+class Overview(BaseModel): # type: ignore[misc]
+    """Major game statistics.
+
+    .. attribute:: players
+
+       Number of players.
+
+    .. attribute:: rooms
+
+       Number of rooms.
+
+    .. attribute:: online_rooms
+
+       Number of rooms with online players.
+    """
+
+    players: int
+    rooms: int
+    online_rooms: int
+
 class Game:
     """Game API.
 
@@ -743,10 +763,20 @@ class Game:
 
     def __init__(self, *, data_path: PathLike[str] | str = 'data') -> None:
         self.players: dict[str, PrivatePlayer] = {}
-        self.rooms: dict[str, OnlineRoom] = {}
         self.members: dict[str, Member] = {}
         self.data_path = Path(data_path)
         self._tokens: dict[str, PrivatePlayer] = {}
+        self._rooms: dict[str, OnlineRoom] = {}
+
+    def get_room(self, room_id: str) -> OnlineRoom:
+        """Get the room given by *room_id*."""
+        return self._rooms[room_id]
+
+    def get_overview(self) -> Overview:
+        """Get major game statistics."""
+        return Overview(
+            players=len(self.players), rooms=len(self._rooms),
+            online_rooms=sum(1 for room in self._rooms.values() if room.members))
 
     def sign_in(self) -> PrivatePlayer:
         """Sign in a player."""
@@ -774,7 +804,7 @@ class Game:
             id=randstr(), title='New Room', description=None,
             tile_ids=['void'] * (OfflineRoom.WIDTH * OfflineRoom.HEIGHT), blueprints=blueprints,
             version='0.6')
-        self.rooms[room.id] = room
+        self._rooms[room.id] = room
         return room
 
     def create_member(self, room: OnlineRoom) -> Member:
@@ -829,9 +859,9 @@ class Game:
                 self._add_player(PrivatePlayer.model_validate_json(path.read_text(), strict=True))
             for path in (state_path / 'rooms').iterdir():
                 room = OnlineRoom.model_validate_json(path.read_text(), strict=True)
-                self.rooms[room.id] = room
+                self._rooms[room.id] = room
         logger.info('Loaded %d player(s) and %d room(s) (%.1fms)', len(self.players),
-                    len(self.rooms), t() * 1000)
+                    len(self._rooms), t() * 1000)
 
         while True:
             # pylint: disable=broad-exception-caught
@@ -858,7 +888,7 @@ class Game:
 
             rooms_path = state_path / 'rooms'
             rooms_path.mkdir(exist_ok=True)
-            for room in self.rooms.values():
+            for room in self._rooms.values():
                 (rooms_path / f'{room.id}.json').write_bytes(self._OfflineRoomModel.dump_json(room))
         getLogger(__name__).info('Saved %d player(s) and %d room(s) (%.1fms)', len(self.players),
-                                 len(self.rooms), t() * 1000)
+                                 len(self._rooms), t() * 1000)

@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest import IsolatedAsyncioTestCase
 
 from room import context
-from room.game import (BaseRoom, FollowLinkEffect, Game, Link, Member, OnlineRoom, Tile,
+from room.game import (BaseRoom, FollowLinkEffect, Game, Link, Member, OnlineRoom, Overview, Tile,
                        TransformTileEffect, UseCause, DEFAULT_BLUEPRINTS)
 
 class TestCase(IsolatedAsyncioTestCase):
@@ -101,6 +101,11 @@ class RoomTest(TestCase):
         self.assertFalse(blueprint.effects)
 
 class GameTest(TestCase):
+    def test_get_overview(self) -> None:
+        self.game.create_room()
+        overview = self.game.get_overview()
+        self.assertEqual(overview, Overview(players=1, rooms=2, online_rooms=1))
+
     def test_sign_in(self) -> None:
         player = self.game.sign_in()
         self.assertIn(player.id, self.game.players)
@@ -116,7 +121,10 @@ class GameTest(TestCase):
 
     def test_create_room(self) -> None:
         room = self.game.create_room()
-        self.assertIn(room.id, self.game.rooms)
+        try:
+            self.game.get_room(room.id)
+        except KeyError:
+            self.fail()
         self.assertEqual(set(room.tile_ids), {'void'}) # type: ignore[misc]
         self.assertEqual(len(room.blueprints), len(DEFAULT_BLUEPRINTS))
 
