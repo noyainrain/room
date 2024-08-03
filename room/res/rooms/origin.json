@@ -1,0 +1,359 @@
+{
+    "id": "origin",
+    "title": "Origin",
+    "description": "The origin of everything…",
+    "tile_ids": [
+        "void",
+        "void",
+        "void",
+        "void",
+        "wall-corner-top-left",
+        "wall-horizontal-wood",
+        "wall-horizontal",
+        "wall-horizontal",
+        "wall-board",
+        "wall-corner-top-right",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "wall-vertical",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall-vertical",
+        "grass-flowers",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "wall-vertical",
+        "floor",
+        "floor",
+        "floor",
+        "floor",
+        "wall-vertical",
+        "grass",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "wall-corner-bottom-left",
+        "wall-horizontal-right",
+        "wall-door-closed",
+        "wall-horizontal-left",
+        "wall-horizontal-wood",
+        "wall-corner-bottom-right",
+        "grass",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "object-sign",
+        "grass",
+        "grass",
+        "grass",
+        "grass",
+        "grass",
+        "grass",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "ledge-left",
+        "grass",
+        "grass",
+        "grass",
+        "grass-flowers",
+        "grass",
+        "ledge-right",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "ledge-left",
+        "ledge",
+        "ledge",
+        "ledge",
+        "ledge-right",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void",
+        "void"
+    ],
+    "blueprints": {
+        "void": {
+            "id": "void",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKElEQVQYV2NkYGD4D8Q4ASNIQWhoKMPq1atRFMHEwAoImkAHBRQ5EgCbrhQB2kRr+QAAAABJRU5ErkJggg==",
+            "wall": true,
+            "effects": []
+        },
+        "grass": {
+            "id": "grass",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAE0lEQVQYV2NkWMXwnwEPYBwZCgCP2Q1RoWixYwAAAABJRU5ErkJggg==",
+            "wall": false,
+            "effects": []
+        },
+        "grass-flowers": {
+            "id": "grass-flowers",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANklEQVQYV2NkWMXwnwEPYKSNgtDQUIbVq1eDLYZb8R8oyAgVRHYSXAGyLpACGB/DkegKCfoCAPu4HFGWXaZdAAAAAElFTkSuQmCC",
+            "wall": false,
+            "effects": []
+        },
+        "floor": {
+            "id": "floor",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAFElEQVQYV2NctWrVfwY8gHFkKAAApMMX8a16WAwAAAAASUVORK5CYII=",
+            "wall": false,
+            "effects": []
+        },
+        "wall-horizontal": {
+            "id": "wall-horizontal",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAHUlEQVQYV2NkYGD4D8Q4AeOqUAIKKDeBoBW0VwAAUMMN+ymiW1kAAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": []
+        },
+        "wall-horizontal-wood": {
+            "id": "wall-horizontal-wood",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAALElEQVQYV2NkYGD4D8Q4AeOqUAIKKDcBZEXYalQnAMXggLAbkB2JzSSCJgAAlvIR+0JN83EAAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": []
+        },
+        "wall-horizontal-left": {
+            "id": "wall-horizontal-left",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAH0lEQVQYV2NkYGD4D8Q4ASNIwapQAgooN4GgFbRVAAA42w37BapWBwAAAABJRU5ErkJggg==",
+            "wall": true,
+            "effects": []
+        },
+        "wall-horizontal-right": {
+            "id": "wall-horizontal-right",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAIklEQVQYV2NkYGD4D8Q4AeOqUNwKwlYzMDBSbgJBK2ivAAB3BxQBPvdazQAAAABJRU5ErkJggg==",
+            "wall": true,
+            "effects": []
+        },
+        "wall-vertical": {
+            "id": "wall-vertical",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAGklEQVQYV2NkYGD4vyoUSGIBYasZGBhHhgIAtRwYAQ8/DokAAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": []
+        },
+        "wall-corner-bottom-left": {
+            "id": "wall-corner-bottom-left",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKUlEQVQYV2NkYGD4vyoUSGIBYasZGBjxKQDpASvArh8iSpwJuNxAJxMAJeEP+yUdTJYAAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": []
+        },
+        "wall-corner-bottom-right": {
+            "id": "wall-corner-bottom-right",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAALklEQVQYV2NkYGD4vyoUSGIBYasZGBiBkv+xSzMwgBWATMClACRO2ASCVtBeAQBkDRYBv0/tWQAAAABJRU5ErkJggg==",
+            "wall": true,
+            "effects": []
+        },
+        "wall-corner-top-left": {
+            "id": "wall-corner-top-left",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAIUlEQVQYV2NkYGD4D8Q4ASNIwapQMhWErWZgwGvCYFEAAP3oFQB4sBPFAAAAAElFTkSuQmCC",
+            "wall": true,
+            "effects": []
+        },
+        "wall-corner-top-right": {
+            "id": "wall-corner-top-right",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAI0lEQVQYV2NkYGD4D8Q4AeOqUNwKwlYzMDCCTAAqwgqGjAIAzBIWAR7vufsAAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": []
+        },
+        "wall-door-closed": {
+            "id": "wall-door-closed",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKUlEQVQYV2NkYGD4D8Q4AeOqUAIKKDeBoBXYFISthrgZKMdA2JGErAAA48sP+4cRACkAAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": [
+                [
+                    {
+                        "type": "UseCause"
+                    },
+                    [
+                        {
+                            "type": "TransformTileEffect",
+                            "blueprint_id": "wall-door-open"
+                        }
+                    ]
+                ]
+            ]
+        },
+        "wall-door-open": {
+            "id": "wall-door-open",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAJ0lEQVQYV2NkYGD4D8QMq1atAlEYgHFVKMP/sNV4FFBuAkEraK8AAKd2I/GdxeBcAAAAAElFTkSuQmCC",
+            "wall": false,
+            "effects": [
+                [
+                    {
+                        "type": "UseCause"
+                    },
+                    [
+                        {
+                            "type": "TransformTileEffect",
+                            "blueprint_id": "wall-door-closed"
+                        }
+                    ]
+                ]
+            ]
+        },
+        "wall-lamp-off": {
+            "id": "wall-lamp-off",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQUlEQVQYV41PQQoAIAxyj/ST85G1DQqCYglenFM0ACP4hDkbw3eCQLg7JBUJVe2uSIlkiVdDHcKUWN9HwmtGu2ICwRgc+3ABh4kAAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": [
+                [
+                    {
+                        "type": "UseCause"
+                    },
+                    [
+                        {
+                            "type": "TransformTileEffect",
+                            "blueprint_id": "wall-lamp-on"
+                        }
+                    ]
+                ]
+            ]
+        },
+        "wall-lamp-on": {
+            "id": "wall-lamp-on",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAARUlEQVQYV42PUQoAIAhD5yH1kHrIcoUfUVEDQfC5qQBoWVeJ6wP4ctC0MQPcZ1L1YYER8QS4VRB7OnGbWo4kRNVwA06/dooKI/tXujy+AAAAAElFTkSuQmCC",
+            "wall": true,
+            "effects": [
+                [
+                    {
+                        "type": "UseCause"
+                    },
+                    [
+                        {
+                            "type": "TransformTileEffect",
+                            "blueprint_id": "wall-lamp-off"
+                        }
+                    ]
+                ]
+            ]
+        },
+        "wall-board": {
+            "id": "wall-board",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAP0lEQVQYV2NkYGD4D8Q4AeOqUAIKKDcBZEXoKogzVocxgulQoCCEv5oB7Aa4gtWrQaKYCqDaID4BKkAGBH0BAPQiHfslfoWIAAAAAElFTkSuQmCC",
+            "wall": true,
+            "effects": [
+                [
+                    {
+                        "type": "UseCause"
+                    },
+                    [
+                        {
+                            "type": "FollowLinkEffect",
+                            "url": "https://discord.gg/Jey5jCJy2T",
+                            "link": null
+                        }
+                    ]
+                ]
+            ]
+        },
+        "ledge": {
+            "id": "ledge",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAGklEQVQYV2NcFcrwnwEPYCSoAKgZvwlDQQEAb+sJ/7KUNZUAAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": []
+        },
+        "ledge-left": {
+            "id": "ledge-left",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAH0lEQVQYV2NcFcrwnwEPYATKgRUAFWIFcAW4DBkSCgBn8wn/EpjX+QAAAABJRU5ErkJggg==",
+            "wall": true,
+            "effects": []
+        },
+        "ledge-right": {
+            "id": "ledge-right",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAH0lEQVQYV2NcFcrwnwEPYMSlIGw1RBcjEOM3YSgoAAA+HQsAD9n8ZwAAAABJRU5ErkJggg==",
+            "wall": true,
+            "effects": []
+        },
+        "object-sign": {
+            "id": "object-sign",
+            "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQUlEQVQYV42OUQoAIAhD5yHtkO6QpUGRYNH+Bm+PCQwdj0gAxppoCmyA8HZEQSSgclwNsY78G5Ze6VvNj+fJFzAAkuAhUZTmMa4AAAAASUVORK5CYII=",
+            "wall": true,
+            "effects": [
+                [
+                    {
+                        "type": "UseCause"
+                    },
+                    [
+                        {
+                            "type": "OpenDialogEffect",
+                            "message": "A room to shape to one's heart's content."
+                        }
+                    ]
+                ]
+            ]
+        }
+    },
+    "version": "0.6"
+}

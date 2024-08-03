@@ -6,7 +6,7 @@ from unittest import IsolatedAsyncioTestCase
 
 from room import context
 from room.game import (BaseRoom, FollowLinkEffect, Game, Link, Member, OnlineRoom, Overview, Tile,
-                       TransformTileEffect, UseCause, DEFAULT_BLUEPRINTS)
+                       TransformTileEffect, UseCause)
 
 class TestCase(IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
@@ -84,7 +84,7 @@ class RoomTest(TestCase):
         action = OnlineRoom.UpdateBlueprintAction(member_id=self.member.id, blueprint=void)
         await action.perform()
         void = self.room.blueprints['void']
-        self.assertEqual(void.image, DEFAULT_BLUEPRINTS['void'].image)
+        self.assertEqual(void.image, self.game.get_room('origin').blueprints['void'].image)
         self.assertTrue(void.wall)
         self.assertEqual(void.effects, effects)
 
@@ -102,7 +102,6 @@ class RoomTest(TestCase):
 
 class GameTest(TestCase):
     def test_get_overview(self) -> None:
-        self.game.create_room()
         overview = self.game.get_overview()
         self.assertEqual(overview, Overview(players=1, rooms=2, online_rooms=1))
 
@@ -125,8 +124,9 @@ class GameTest(TestCase):
             self.game.get_room(room.id)
         except KeyError:
             self.fail()
-        self.assertEqual(set(room.tile_ids), {'void'}) # type: ignore[misc]
-        self.assertEqual(len(room.blueprints), len(DEFAULT_BLUEPRINTS))
+        origin = self.game.get_room('origin')
+        self.assertEqual(room.tile_ids, origin.tile_ids)
+        self.assertEqual(room.blueprints, origin.blueprints)
 
     def test_create_data_directory(self) -> None:
         with TemporaryDirectory() as directory:

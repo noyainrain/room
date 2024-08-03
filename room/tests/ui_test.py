@@ -20,7 +20,7 @@ from selenium.webdriver.support.expected_conditions import (
     text_to_be_present_in_element_attribute)
 from selenium.webdriver.support.wait import WebDriverWait
 
-from room.game import OnlineRoom, Tile, DEFAULT_BLUEPRINTS
+from room.game import Game, OnlineRoom, Tile
 from room.__main__ import main
 
 class Location(TypedDict):
@@ -39,6 +39,8 @@ def element_at(element: WebElement, location: Location, *,
 class UITest(TestCase):
     TIMEOUT = 1
     MEMBER_SPEED = OnlineRoom.HEIGHT / 2 * Tile.SIZE
+    DOOR_INDEX = 6 + 3 * OnlineRoom.WIDTH
+    EDGE_INDEX = 10 + 4 * OnlineRoom.WIDTH
 
     def setUp(self) -> None:
         def run() -> None:
@@ -83,7 +85,8 @@ class UITest(TestCase):
     def test(self) -> None:
         # View room
         self.browser.get(f'http://{gethostname()}:8080')
-        tile = self.wait.until(presence_of_element_located((By.CSS_SELECTOR, '.room-game-tile')))
+        door = self.wait.until(presence_of_element_located(
+            (By.CSS_SELECTOR, f'.room-game-tile:nth-child({self.DOOR_INDEX + 1})')))
 
         # Start tutorial
         start_button = self.browser.find_element(By.CSS_SELECTOR, '.room-howto-start')
@@ -93,21 +96,11 @@ class UITest(TestCase):
         # View inventory
         equipment = self.browser.find_element(By.CSS_SELECTOR, '.room-game-equipment')
         equipment.click()
-        index = next(i for i, blueprint_id in enumerate(DEFAULT_BLUEPRINTS)
-                     if blueprint_id == 'wall-door-closed')
-        item = self.browser.find_element(By.CSS_SELECTOR,
-                                         f'room-inventory ul > :nth-child({index + 2}) .tile')
-        self.assertTrue(item.is_displayed())
-
-        # Select item
-        item.click()
-        self.assertEqual(
-            equipment.find_element(By.CSS_SELECTOR, 'img').get_property('src'), # type: ignore[misc]
-            DEFAULT_BLUEPRINTS['wall-door-closed'].image)
+        player = self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-player')
+        self.assertTrue(player.is_displayed())
 
         # Update player
-        equipment.click()
-        self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-player').click()
+        player.click()
         form = self.browser.find_element(By.CSS_SELECTOR, 'room-player-editor form')
         name_input = form.find_element(By.NAME, 'name')
         name_input.clear()
@@ -161,30 +154,42 @@ class UITest(TestCase):
         self.browser.find_element(By.CSS_SELECTOR, 'room-blueprint button').click()
         self.browser.find_element(By.CSS_SELECTOR, '.room-workshop-close').click()
 
+        # Use
+        actions = ActionChains(self.browser)
+        actions.click(door).perform()
+        origin = Game().get_room('origin')
+        self.wait.until(
+            text_to_be_present_in_element_attribute(
+                (By.CSS_SELECTOR, f'.room-game-tile:nth-child({self.DOOR_INDEX + 1}) img'), 'src',
+                origin.blueprints['wall-door-open'].image))
+
         # Move
         member = self.browser.find_element(By.CSS_SELECTOR, '.room-game-member')
-        location = cast(Location, tile.location)
+        edge = self.browser.find_element(By.CSS_SELECTOR,
+                                         f'.room-game-tile:nth-child({self.EDGE_INDEX + 1})')
+        location = cast(Location, edge.location)
         hud = self.browser.find_element(By.CSS_SELECTOR, '.room-game-hud')
         scale = cast(dict[str, int], hud.size)['height'] / (OnlineRoom.HEIGHT * Tile.SIZE)
         t = distance(cast(Location, member.location), location) / (self.MEMBER_SPEED * scale)
-        actions = ActionChains(self.browser)
-        actions.click_and_hold(tile).perform()
+        actions.click_and_hold(edge).perform()
         WebDriverWait(self.browser, t + self.TIMEOUT).until(
             element_at(member, location, delta=scale))
         actions.reset_actions()
 
-        # Place tile
-        actions.click(tile).perform()
-        self.wait.until(
-            text_to_be_present_in_element_attribute(
-                (By.CSS_SELECTOR, '.room-game-tile img'), 'src',
-                DEFAULT_BLUEPRINTS['wall-door-closed'].image))
-
-        # Use
+        # Select item
         equipment.click()
-        self.browser.find_element(By.CSS_SELECTOR, '.room-inventory-no-item').click()
-        actions.click(tile).perform()
+        index = next(i for i, blueprint_id in enumerate(origin.blueprints)
+                     if blueprint_id == 'grass-flowers')
+        self.browser.find_element(
+            By.CSS_SELECTOR, f'room-inventory ul > :nth-child({index + 2}) .tile'
+        ).click()
+        self.assertEqual(
+            equipment.find_element(By.CSS_SELECTOR, 'img').get_property('src'), # type: ignore[misc]
+            origin.blueprints['grass-flowers'].image)
+
+        # Place tile
+        actions.click(edge).perform()
         self.wait.until(
             text_to_be_present_in_element_attribute(
-                (By.CSS_SELECTOR, '.room-game-tile img'), 'src',
-                DEFAULT_BLUEPRINTS['wall-door-open'].image))
+                (By.CSS_SELECTOR, f'.room-game-tile:nth-child({self.EDGE_INDEX + 1}) img'), 'src',
+                origin.blueprints['grass-flowers'].image))

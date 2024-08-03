@@ -7,10 +7,6 @@
 .. data:: AnyEffect
 
    Any possible tile effect.
-
-.. data:: DEFAULT_BLUEPRINTS
-
-   Default tile blueprints by ID.
 """
 
 from __future__ import annotations
@@ -20,6 +16,7 @@ from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
 import errno
+from importlib import resources
 from logging import getLogger
 from os import PathLike
 from pathlib import Path
@@ -570,153 +567,6 @@ class OnlineRoomWithMembers(OnlineRoom): # type: ignore[misc]
         """Room members."""
         return [member.with_player() for member in self._members]
 
-DEFAULT_BLUEPRINTS = {
-    'void': Tile(
-        id='void',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKElEQVQYV2NkYGD4'
-            'D8Q4ASNIQWhoKMPq1atRFMHEwAoImkAHBRQ5EgCbrhQB2kRr+QAAAABJRU5ErkJggg==',
-        wall=False,
-        effects={}
-    ),
-    'grass': Tile(
-        id='grass',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAOElEQVQYV2NkWMXw'
-            'nwEPYAQpCA0NZVi9ejVWZRgK0BWDFSBrJagA3R64Ceg6YXycCmAmYbgB3QoAnmIiUcgpwTgAAAAASUVORK5CYI'
-            'I=',
-        wall=False,
-        effects={}
-    ),
-    'floor': Tile(
-        id='floor',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAFElEQVQYV2NctWrV'
-            'fwY8gHFkKAAApMMX8a16WAwAAAAASUVORK5CYII=',
-        wall=False,
-        effects={}
-    ),
-    'wall-horizontal': Tile(
-        id='wall-horizontal',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAALElEQVQYV2MMDQ39'
-            'z4AHMK4KZcCvgGgTVjOEAuFqIITQMAC3gmgF6O6l3JEA6qkZ+Y/de7cAAAAASUVORK5CYII=',
-        wall=True,
-        effects={}
-    ),
-    'wall-horizontal-left': Tile(
-        id='wall-horizontal-left',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANUlEQVQYV2MMDQ39'
-            'z4AHMIIUhDKsxqkErIBoE1YzhALhaiCE0CCAYgVBBTCrcJqAzS0EHQkARNYe+TqxIDUAAAAASUVORK5CYII=',
-        wall=True,
-        effects={}
-    ),
-    'wall-horizontal-right': Tile(
-        id='wall-horizontal-right',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAMklEQVQYV2MMDQ39'
-            'z4AHMK4KZcCpYDVDKAMjSSaAdIQyrAZCBI1iBdEKYG4Gu4FiRwIA43Ue+WpSWc4AAAAASUVORK5CYII=',
-        wall=True,
-        effects={}
-    ),
-    'wall-vertical': Tile(
-        id='wall-vertical',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAG0lEQVQYV2MMDQ39'
-            'H8qwmgEbWM0QysA4MhQAAD2TH/nrMiedAAAAAElFTkSuQmCC',
-        wall=True,
-        effects={}
-    ),
-    'wall-corner-bottom-left': Tile(
-        id='wall-corner-bottom-left',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAANklEQVQYV2MMDQ39'
-            'H8qwmgEbWM0QysCITwFIE1gBVu1QQQwTQMaCrITRpCuAWYfTBHT3EHQkAAj0IPmuXnNhAAAAAElFTkSuQmCC',
-        wall=True,
-        effects={}
-    ),
-    'wall-corner-bottom-right': Tile(
-        id='wall-corner-bottom-right',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPElEQVQYV2MMDQ39'
-            'H8qwmgEbWM0QysC4KpThP1ZZoCBYAcgEXApA4mATQCpB1sBomAa4FUQrQLeKOo4EAB+iIPk9A4o5AAAAAElFTk'
-            'SuQmCC',
-        wall=True,
-        effects={}
-    ),
-    'wall-corner-top-left': Tile(
-        id='wall-corner-top-left',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAIUlEQVQYV2MMDQ39'
-            'z4AHMIIUhDKsxqkEr4LVDKEMQ0IBAIgQHPlqSMNBAAAAAElFTkSuQmCC',
-        wall=True,
-        effects={}
-    ),
-    'wall-corner-top-right': Tile(
-        id='wall-corner-top-right',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAJUlEQVQYV2MMDQ39'
-            'z4AHMK4KZcCpYDVDKAMjyIRQhtVYzRgyCgBxZhz5QKrMXgAAAABJRU5ErkJggg==',
-        wall=True,
-        effects={}
-    ),
-    'wall-door-closed': Tile(
-        id='wall-door-closed',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKUlEQVQYV2MMDQ39'
-            'z4AHMK4KZcCvgHITCFqBTcFqhlCws0MZVjNQ7kgAqm0R+QmF/X4AAAAASUVORK5CYII=',
-        wall=True,
-        effects={UseCause(): [TransformTileEffect(blueprint_id='wall-door-open')]}
-    ),
-    'wall-door-open': Tile(
-        id='wall-door-open',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAKUlEQVQYV2MMDQ39'
-            'zwAEQBpEYQDGVaEM/1czhOJWQLkJBK2gXAEhRwIAATAc8UKSQEIAAAAASUVORK5CYII=',
-        wall=False,
-        effects={UseCause(): [TransformTileEffect(blueprint_id='wall-door-closed')]}
-    ),
-    'wall-lamp-off': Tile(
-        id='wall-lamp-off',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQklEQVQYV41PWwoA'
-            'MAiyQ3rJPORWwQaDvYR+zNSMZMMF5sRd8O0gEO4OSTWEKnhGJBVuRW4FtQhRYlwvDqdH7FWyA4jCHvmIXOL4AA'
-            'AAAElFTkSuQmCC',
-        wall=True,
-        effects={UseCause(): [TransformTileEffect(blueprint_id='wall-lamp-on')]}
-    ),
-    'wall-lamp-on': Tile(
-        id='wall-lamp-on',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQ0lEQVQYV42OQRIA'
-            'IAgC6ZH4SH1khY2HLhknZlyQQXLioeHEG/hq4K4xA9zPr/JhgXzRAkoVJK8mpaVrpCCpjgl0IxdRtCX5PJx3Mg'
-            'AAAABJRU5ErkJggg==',
-        wall=True,
-        effects={UseCause(): [TransformTileEffect(blueprint_id='wall-lamp-off')]}
-    ),
-    'wall-board': Tile(
-        id='wall-board',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQElEQVQYV2MMDQ39'
-            'z4AHMK4KZcCvgHITQFaEroLYsjqMEUyHAgUh/NUMYDfAFaxeDRLFVADVBvELUAEyYCTkSAC7zB/5tkwb/wAAAA'
-            'BJRU5ErkJggg==',
-        wall=True,
-        effects={UseCause(): [FollowLinkEffect(url='https://discord.gg/Jey5jCJy2T', link=None)]}
-    ),
-    'object-sign': Tile(
-        id='object-sign',
-        image=
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQUlEQVQYV42OUQoA'
-            'IAhD5yHtkO6QpUGRYNH+Bm+PCQwdj0gAxppoCmyA8HZEQSSgclwNsY78G5Ze6VvNj+fJFzAAkuAhUZTmMa4AAA'
-            'AASUVORK5CYII=',
-        wall=True,
-        effects={
-            UseCause(): [OpenDialogEffect(message="A room to shape to one's heart's content.")]
-        }
-    )
-}
-
 class Overview(BaseModel): # type: ignore[misc]
     """Major game statistics.
 
@@ -767,13 +617,24 @@ class Game:
         self.data_path = Path(data_path)
         self._tokens: dict[str, PrivatePlayer] = {}
         self._rooms: dict[str, OnlineRoom] = {}
+        self._room_template: OnlineRoom | None = None
+
+    def _init_rooms(self) -> None:
+        if 'origin' not in self._rooms:
+            room = OnlineRoom.model_validate_json(
+                (resources.files(f'{__package__}.res') / 'rooms' / 'origin.json').read_text(),
+                strict=True)
+            self._rooms['origin'] = room
+            self._room_template = room.model_copy(deep=True)
 
     def get_room(self, room_id: str) -> OnlineRoom:
         """Get the room given by *room_id*."""
+        self._init_rooms()
         return self._rooms[room_id]
 
     def get_overview(self) -> Overview:
         """Get major game statistics."""
+        self._init_rooms()
         return Overview(
             players=len(self.players), rooms=len(self._rooms),
             online_rooms=sum(1 for room in self._rooms.values() if room.members))
@@ -797,13 +658,15 @@ class Game:
 
     def create_room(self) -> OnlineRoom:
         """Create a new room."""
+        self._init_rooms()
+        assert self._room_template
         blueprints = {
-            blueprint.id: blueprint.model_copy() for blueprint in DEFAULT_BLUEPRINTS.values()
+            blueprint_id: blueprint.model_copy(deep=True)
+            for blueprint_id, blueprint in self._room_template.blueprints.items()
         }
         room = OnlineRoom(
             id=randstr(), title='New Room', description=None,
-            tile_ids=['void'] * (OfflineRoom.WIDTH * OfflineRoom.HEIGHT), blueprints=blueprints,
-            version='0.6')
+            tile_ids=list(self._room_template.tile_ids), blueprints=blueprints, version='0.6')
         self._rooms[room.id] = room
         return room
 
@@ -860,6 +723,8 @@ class Game:
             for path in (state_path / 'rooms').iterdir():
                 room = OnlineRoom.model_validate_json(path.read_text(), strict=True)
                 self._rooms[room.id] = room
+            # Reset Origin to ensure it is up-to-date
+            self._rooms.pop('origin', None)
         logger.info('Loaded %d player(s) and %d room(s) (%.1fms)', len(self.players),
                     len(self._rooms), t() * 1000)
 
@@ -889,6 +754,7 @@ class Game:
             rooms_path = state_path / 'rooms'
             rooms_path.mkdir(exist_ok=True)
             for room in self._rooms.values():
-                (rooms_path / f'{room.id}.json').write_bytes(self._OfflineRoomModel.dump_json(room))
+                (rooms_path / f'{room.id}.json').write_bytes(
+                    self._OfflineRoomModel.dump_json(room, indent=4))
         getLogger(__name__).info('Saved %d player(s) and %d room(s) (%.1fms)', len(self.players),
                                  len(self._rooms), t() * 1000)
